@@ -1,0 +1,1 @@
+awk -F ":" '/machine/ { print $2}' /proc/cpuinfo | cut -f3

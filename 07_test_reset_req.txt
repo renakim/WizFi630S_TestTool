@@ -1,0 +1,7 @@
+echo 0 > /sys/class/leds/wizfi630s\:green\:uart2/brightness
+echo 255 > /sys/class/leds/wizfi630s\:green\:uart2/brightness
+echo 0 > /sys/class/leds/wizfi630s\:green\:uart2/brightness
+echo 255 > /sys/class/leds/wizfi630s\:green\:uart2/brightness
+echo 0 > /sys/class/leds/wizfi630s\:green\:uart2/brightness
+echo 255 > /sys/class/leds/wizfi630s\:green\:uart2/brightness
+echo 0 > /sys/class/leds/wizfi630s\:green\:uart2/brightness
