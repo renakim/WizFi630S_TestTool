@@ -1,0 +1,5 @@
+# requirements
+
+PyQt5==5.9.2
+pyserial
+fbs
