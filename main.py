@@ -2,9 +2,10 @@ import sys
 import time
 import os
 
-from fbs_runtime.application_context.PyQt5 import ApplicationContext
-from PyQt5 import QtWidgets, uic, QtCore
-from dialog import MyDialog
+from PyQt5 import uic
+from PyQt5.QtWidgets import QMainWindow, QApplication
+from PyQt5.QtCore import pyqtSignal
+
 from comthread import comthread
 from barcodethread import barcodethread
 import serial
@@ -20,18 +21,27 @@ NORMAL = 4
 GPIOCHECK = 5
 
 
-class AppWindow(QtWidgets.QDialog):
-    sig = QtCore.pyqtSignal(str)
+def resource_path(relative_path):
+    # Get absolute path to resource, works for dev and for PyInstaller
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
+
+
+# Load ui file
+main_dialog = uic.loadUiType(resource_path('./mainwindow.ui'))[0]
+
+
+class AppWindow(QMainWindow, main_dialog):
+    sig = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
-        uic.loadUi('dialog.ui', self)
+        self.setupUi(self)
 
         self.iscomportopened = False
         self.isopened_barcodeport = False
 
         """comboBox control 초기화"""
-        # self.comboBox = self.findChild(QtWidgets.QComboBox, 'comboBox_Comport')
         self.initComboBox(self.combobox_devport)
 
         # For barcode serial port connetion
@@ -173,17 +183,17 @@ class AppWindow(QtWidgets.QDialog):
             self.startbutton.setEnabled(False)
 
     def clear_log(self):
-        self.logtextedit.setText("")
+        self.logtextedit.setPlainText("")
 
     def clear_barcodelog(self):
-        self.logtextedit_barcode.setText("")
+        self.logtextedit_barcode.setPlainText("")
 
     def clear_result(self):
-        self.textedit_result.setText("")
+        self.textedit_result.setPlainText("")
 
 
 if __name__ == '__main__':
-    appctxt = ApplicationContext()
-    w = AppWindow()
-    w.show()
-    sys.exit(appctxt.app.exec_())
+    app = QApplication(sys.argv)
+    maindialog = AppWindow()
+    maindialog.show()
+    app.exec_()

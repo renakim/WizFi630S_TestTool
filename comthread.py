@@ -190,6 +190,7 @@ class comthread(QtCore.QThread):
                             self.comport.write(b'\n')
 
             elif self.curstate is TESTING:
+
                 for testitem in self.testlist.keys():
                     self.signal.emit(
                         '===============' + testitem + ' ' + self.testlist[testitem]['testname'] + ' is starting ===============')
