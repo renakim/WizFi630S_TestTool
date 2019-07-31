@@ -14,6 +14,8 @@ BOOTING = 2
 TESTING = 3
 NORMAL = 4
 
+# Sub state
+
 promptstr = 'root@wizfi630s:/#'
 
 
@@ -30,10 +32,14 @@ class comthread(QtCore.QThread):
         self.curstate = IDLE
         self.testresult = True
         self.substate = 0
-        self.testlist = {}
-
-        # Final result log
-        self.total_result = {}
+        self.testlist = {
+            # '00': {
+            #     'testname': 'gpip check',
+            #     'req': '',
+            #     'resp': '',
+            #     'result': ''
+            # }
+        }
 
     def load_testfiles(self):
         filelist = glob.glob("*.txt")
@@ -63,10 +69,11 @@ class comthread(QtCore.QThread):
                 elif 'resp' in items[len(items) - 1]:
                     self.testlist[items[0]]['resp'] = file
 
-        # print("load_testfiles()", self.testlist)
+        print("load_testfiles()", self.testlist)
 
     def responsecheck(self, cmdtxt, responsetxt, testitem):
         responsebuffer = ""
+
         while True:
             try:
                 recvline = self.comport.readline()
@@ -131,43 +138,67 @@ class comthread(QtCore.QThread):
                 self.signal_state.emit('IDLE')
                 self.load_testfiles()
                 self.curstate = READY
-                self.substate = IDLE
+                self.substate = 0
+                # self.substate = 3   #! GPIO 테스트 먼저 진행
             elif self.curstate is READY:
                 pass
             elif self.curstate is BOOTING:
                 recv = self.comport.readline()
                 if recv is not '':
                     tmprcv = recv.strip().decode("utf-8")
-                    if self.substate == IDLE:
+                    if self.substate == 0:
                         self.signal.emit(tmprcv)
                         # if "REBOOT" in tmprcv:
                         # 부팅 체크 string 변경
                         if "Booting" in tmprcv:
                             # self.signal.emit(tmprcv)
                             self.signal_state.emit('BOOTING')
-                            self.substate = READY
-                    elif self.substate == READY:
+                            self.substate = 1
+                    elif self.substate == 1:
                         # 체크 메시지 변경
                         # if "br-lan: link becomes ready" in tmprcv:
                         if "device ra0 entered promiscuous mode" in tmprcv:
                             self.signal_state.emit('NORMAL')
                             self.signal.emit(tmprcv)
                             self.comport.write(b'\r\n')
-                            self.substate = BOOTING
+                            self.substate = 2
                         else:
                             self.signal.emit(tmprcv)
-                    elif self.substate == BOOTING:
+                    elif self.substate == 2:
                         self.signal.emit(tmprcv)
                         if "root@wizfi630s:" in tmprcv:
                             self.curstate = TESTING
                             self.signal_state.emit('TESTING')
-                            self.substate = IDLE
+                            self.substate = 0
+                    # ! GPIO Check
+                    if self.substate == 3:
+                        self.signal.emit(tmprcv)
+                        if 'Please choose the operation' in tmprcv:
+                            self.signal_state.emit('GPIO')
+                            self.comport.write(b'a')
+
+                        if 'OK' in tmprcv or 'FAIL' in tmprcv:
+                            # 임시 log
+                            self.test_result.emit('=====>> GPIO TEST complete')
+                            if 'OK' in tmprcv:
+                                self.testlist["00"]["result"] = 'pass'
+                            elif 'FAIL' in tmprcv:
+                                self.testlist["00"]["result"] = 'fail'
+                            # 테스트가 끝나면 \n 입력
+                            self.substate = 0
+                            self.comport.write(b'\n')
+                            self.comport.write(b'\n')
+
             elif self.curstate is TESTING:
-                #! 06_test_mac 테스트 시 체크:
-                # 바코드가 찍히지 않았다면 메시지 띄움
-                # thread 시그널 또는 파일 체크
                 for testitem in self.testlist.keys():
-                    self.signal.emit(testitem + ' ' + self.testlist[testitem]['testname'] + ' is starting')
+                    self.signal.emit(
+                        '===============' + testitem + ' ' + self.testlist[testitem]['testname'] + ' is starting ===============')
+                    #! 06_test_mac 테스트 시 체크:
+                    # 바코드가 찍히지 않았다면 메시지 띄움: thread 시그널 또는 파일 체크
+                    # 테스트 중단 or 다른 테스트 먼저 진행
+                    if testitem is "06" and self.testlist[testitem]['testname'] is 'test mac':
+                        pass
+
                     cmdfile = open(self.testlist[testitem]['req'], "r")
                     respfile = open(self.testlist[testitem]['resp'], "r")
                     responsetxt = respfile.readline()

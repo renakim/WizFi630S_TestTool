@@ -1,5 +1,6 @@
 import sys
 import time
+import os
 
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from PyQt5 import QtWidgets, uic, QtCore
@@ -16,18 +17,7 @@ READY = 1
 BOOTING = 2
 TESTING = 3
 NORMAL = 4
-
-# class QPlainTextEditLogger(logging.Handler):
-#     def __init__(self):
-#         super().__init__()
-#         self.widget = QtWidgets.QPlainTextEdit()
-#         self.widget.setReadOnly(True)
-
-#     def emit(self, record):
-#         msg = self.format(record)
-#         self.widget.appendPlainText(msg)
-
-# class AppWindow(QtWidgets.QDialog, QPlainTextEditLogger):
+GPIOCHECK = 5
 
 
 class AppWindow(QtWidgets.QDialog):
@@ -40,27 +30,27 @@ class AppWindow(QtWidgets.QDialog):
         self.iscomportopened = False
         self.isopened_barcodeport = False
 
-        '''comboBox control 초기화'''
+        """comboBox control 초기화"""
         # self.comboBox = self.findChild(QtWidgets.QComboBox, 'comboBox_Comport')
         self.initComboBox(self.combobox_devport)
 
         # For barcode serial port connetion
         self.initComboBox(self.combobox_barcode)
 
-        '''rescan pushbutton과 Event handler를 연결한다'''
+        """ rescan pushbutton과 Event handler를 연결한다. """
         self.rescanbutton.clicked.connect(self.rescanButtonPressed)
 
-        ''' Comport Open pushbutton과 Event handler를 연결한다.'''
+        """ Comport Open pushbutton과 Event handler를 연결한다."""
         self.button_open_devport.clicked.connect(self.openButtonPressed)
 
-        ''' 바코드 기기 연결 포트 handler '''
+        """ 바코드 기기 연결 포트 handler """
         self.button_open_barcodeport.clicked.connect(self.openBarcodeButtonPressed)
 
-        ''' Test start pushbutton과 Event handler를 연결한다.'''
+        """ Test start pushbutton과 Event handler를 연결한다."""
         self.startbutton.clicked.connect(self.startButtonPressed)
         self.startbutton.setEnabled(False)
 
-        ''' Label message를 읽어온다. '''
+        """ Label message를 읽어온다. """
         self.msglabel.setText('Ready')
 
         """ Clear buttons """
@@ -72,13 +62,13 @@ class AppWindow(QtWidgets.QDialog):
         # logging.getLogger().addHandler(logTextBox)
         # logging.getLogger().setLevel(logging.DEBUG)
 
-        ''' Com Port 처리용 Thread 생성 '''
+        """ Com Port 처리용 Thread 생성 """
         self.comthread = None
 
-        ''' Barcode 기기 연결 com port '''
+        """ Barcode 기기 연결 com port """
         self.barcodethread = None
 
-    ''' 콤보박스에 아이템 입력 '''
+    """ 콤보박스에 아이템 입력 """
 
     def initComboBox(self, combobox):
         comportlist = [comport.device for comport in serial.tools.list_ports.comports()]
@@ -90,17 +80,17 @@ class AppWindow(QtWidgets.QDialog):
             except serial.SerialException as e:
                 sys.stdout.write(str(e))
 
-    ''' rescan pushbutton용 Event handler'''
+    """ rescan pushbutton용 Event handler"""
 
     def rescanButtonPressed(self):
         self.combobox_devport.clear()
         self.initComboBox(self.combobox_devport)
 
-    ''' open pushbutton용 Event handler'''
+    """ open pushbutton용 Event handler"""
 
     def openButtonPressed(self):
         if self.iscomportopened is False:
-            ''' open com port '''
+            """ open com port """
             self.iscomportopened = True
             self.logtextedit.appendPlainText('=============== Comport is opened ===============')
             self.comthread = comthread(self.combobox_devport.currentText())
@@ -113,7 +103,7 @@ class AppWindow(QtWidgets.QDialog):
             self.comthread.test_result.connect(self.append_resulttext)
             self.button_open_devport.setText('Close')
         else:
-            ''' close com port '''
+            """ close com port """
             self.iscomportopened = False
             self.logtextedit.appendPlainText('=============== Comport is closed ===============')
             self.comthread.stop()
@@ -155,26 +145,30 @@ class AppWindow(QtWidgets.QDialog):
     def statehandler(self, statetxt):
         print('statehandler()', statetxt.encode())
         if "FAILED" in statetxt:
-            ''' Start button을 Enable 시키고 Label에 'FAILED'를 표시한다. '''
+            """ Start button을 Enable 시키고 Label에 'FAILED'를 표시한다. """
             self.msglabel.setStyleSheet('color: red')
             self.msglabel.setText('FAILED')
             self.startbutton.setEnabled(True)
         elif "PASSED" in statetxt:
-            ''' Start button을 Enable 시키고 Label에 'PASSED'를 표시한다. '''
+            """ Start button을 Enable 시키고 Label에 'PASSED'를 표시한다. """
             self.msglabel.setStyleSheet('color: green')
             self.msglabel.setText('PASSED')
             self.startbutton.setEnabled(True)
         elif "BOOTING" in statetxt:
-            ''' Label에 'BOOTING'을 표시한다. '''
+            """ Label에 'BOOTING'을 표시한다. """
             self.msglabel.setStyleSheet('color: blue')
             self.msglabel.setText('BOOTING...')
         elif "TESTING" in statetxt:
-            ''' Label에 'TESTING...'을 표시한다. '''
+            """ Label에 'TESTING...'을 표시한다. """
             self.msglabel.setStyleSheet('color: blue')
             self.msglabel.setText('TESTING...')
         elif "IDLE" in statetxt:
-            ''' Start button을 Enable 시킨다. '''
+            """ Start button을 Enable 시킨다. """
             self.startbutton.setEnabled(True)
+        elif "GPIO" in statetxt:
+            """ """
+            self.msglabel.setStyleSheet('color: green')
+            self.msglabel.setText('GPIO CHECKING...')
         else:
             self.startbutton.setEnabled(False)
 
