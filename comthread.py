@@ -32,14 +32,10 @@ class comthread(QtCore.QThread):
         self.curstate = IDLE
         self.testresult = True
         self.substate = 0
-        self.testlist = {
-            # '00': {
-            #     'testname': 'gpip check',
-            #     'req': '',
-            #     'resp': '',
-            #     'result': ''
-            # }
-        }
+        self.testlist = {}
+
+        self.gpiocheck_result = None
+        self.macaddr = None
 
     def load_testfiles(self):
         filelist = glob.glob("*.txt")
@@ -86,15 +82,19 @@ class comthread(QtCore.QThread):
                 elif promptstr in tmprcv:
                     # ? 명령을 여러 번 입력해야 결과가 발생하는 case
                     if responsetxt is not "":
+                        #! mac address 저장
+                        if 'mac' in self.testlist[testitem]['testname']:
+                            self.macaddr = responsebuffer
+
                         if responsetxt in responsebuffer:
                             # ! 결과 추가
-                            self.testlist[testitem]['result'] = 'pass'
+                            self.testlist[testitem]['result'] = 'PASS'
                             self.signal.emit(testitem + ' ' + self.testlist[testitem]['testname'] + ' PASSED')
                             responsebuffer = ""
                             return
                         else:
                             # !
-                            self.testlist[testitem]['result'] = 'fail'
+                            self.testlist[testitem]['result'] = 'FAIL'
                             self.signal.emit(testitem + ' ' + self.testlist[testitem]['testname'] + ' FAILED')
                             self.testresult = False
                             responsebuffer = ""
@@ -110,19 +110,35 @@ class comthread(QtCore.QThread):
     def get_result(self):
         fail_list = []
         # print('get_result()', self.testlist)
-        for testnum in self.testlist.keys():
-            # all case
-            # test = testnum + '_' + self.testlist[testnum]['testname']
-            test = "[%s][00:08:DC:AA:BB:CC] %s) %-15s | %-5s" % (
-                time.strftime('%c', time.localtime(time.time())),
-                testnum, self.testlist[testnum]['testname'], self.testlist[testnum]['result'])
-            self.test_result.emit(test)
-            print(test)
 
-            if self.testlist[testnum]['result'] is 'fail':
-                # fail case
-                fail_list.append(test)
-        print('get_result:failcase:', fail_list)
+        self.testlist['00'] = {
+            'testname': 'gpio check',
+            'result': self.gpiocheck_result
+        }
+
+        if self.macaddr is not None:
+            for testnum in self.testlist.keys():
+                # all case
+                # test = testnum + '_' + self.testlist[testnum]['testname']
+                test = "[%s][%s] %s) %-15s | %-5s" % (
+                    time.strftime('%c', time.localtime(time.time())), self.macaddr,
+                    testnum, self.testlist[testnum]['testname'], self.testlist[testnum]['result'])
+                self.test_result.emit(test)
+                print(test)
+
+                if self.testlist[testnum]['result'] is 'FAIL':
+                    # fail case
+                    fail_list.append(test)
+        else:
+            pass
+
+    def check_barcode(self):
+        macfile = open('06_test_mac_resp.txt', 'r')
+        barcodemac = macfile.readline()
+        if len(barcodemac) > 0:
+            return True
+        else:
+            return False
 
     def stop(self):
         self.alive = False
@@ -138,8 +154,8 @@ class comthread(QtCore.QThread):
                 self.signal_state.emit('IDLE')
                 self.load_testfiles()
                 self.curstate = READY
-                self.substate = 0
-                # self.substate = 3   #! GPIO 테스트 먼저 진행
+                # self.substate = 0
+                self.substate = 3  # ! GPIO 테스트 먼저 진행
             elif self.curstate is READY:
                 pass
             elif self.curstate is BOOTING:
@@ -179,11 +195,12 @@ class comthread(QtCore.QThread):
 
                         if 'OK' in tmprcv or 'FAIL' in tmprcv:
                             # 임시 log
-                            self.test_result.emit('=====>> GPIO TEST complete')
                             if 'OK' in tmprcv:
-                                self.testlist["00"]["result"] = 'pass'
+                                self.gpiocheck_result = 'PASS'
+                                self.test_result.emit('GPIO check PASS')
                             elif 'FAIL' in tmprcv:
-                                self.testlist["00"]["result"] = 'fail'
+                                self.gpiocheck_result = 'FAIL'
+                                self.test_result.emit('GPIO check FAIL')
                             # 테스트가 끝나면 \n 입력
                             self.substate = 0
                             self.comport.write(b'\n')
@@ -196,16 +213,20 @@ class comthread(QtCore.QThread):
                         '===============' + testitem + ' ' + self.testlist[testitem]['testname'] + ' is starting ===============')
                     #! 06_test_mac 테스트 시 체크:
                     # 바코드가 찍히지 않았다면 메시지 띄움: thread 시그널 또는 파일 체크
-                    # 테스트 중단 or 다른 테스트 먼저 진행
-                    if testitem is "06" and self.testlist[testitem]['testname'] is 'test mac':
-                        pass
+                    # 테스트 일시 중단 & 파일 체크
+                    if 'mac' in self.testlist[testitem]['testname']:
+                        while not self.check_barcode():
+                            self.signal_state.emit('BARCODE NOT READ')
+                        self.signal_state.emit('TESTING')
 
+                    print('TESTING Check', self.testlist[testitem])
                     cmdfile = open(self.testlist[testitem]['req'], "r")
                     respfile = open(self.testlist[testitem]['resp'], "r")
                     responsetxt = respfile.readline()
                     responsetxt = responsetxt.strip()
                     # self.signal.emit(responsetxt)
                     cmdlines = cmdfile.readlines()
+
                     if len(cmdlines) > 1:
                         for index, line in enumerate(cmdlines):
                             print(index, line, sep=' ')
