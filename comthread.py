@@ -28,7 +28,11 @@ class comthread(QtCore.QThread):
         QtCore.QThread.__init__(self, parent)
         self.alive = True
         self.source_txt = ''
-        self.comport = serial.Serial(comport, 115200, timeout=1)  # exception 추가?
+        try:
+            self.comport = serial.Serial(comport, 115200, timeout=1)  # exception 추가?
+        except serial.SerialException as e:
+            self.comport = None
+            self.signal_state.emit('ERROR:' + str(e))
         self.curstate = IDLE
         self.testresult = True
         self.substate = 0
@@ -65,7 +69,7 @@ class comthread(QtCore.QThread):
                 elif 'resp' in items[len(items) - 1]:
                     self.testlist[items[0]]['resp'] = file
 
-        print("load_testfiles()", self.testlist)
+        # print("load_testfiles()", self.testlist)
 
     def responsecheck(self, cmdtxt, responsetxt, testitem):
         responsebuffer = ""
@@ -85,6 +89,7 @@ class comthread(QtCore.QThread):
                         #! mac address 저장
                         if 'mac' in self.testlist[testitem]['testname']:
                             self.macaddr = responsebuffer
+                            responsebuffer = responsebuffer.replace(":", "")
 
                         if responsetxt in responsebuffer:
                             # ! 결과 추가
@@ -142,8 +147,9 @@ class comthread(QtCore.QThread):
 
     def stop(self):
         self.alive = False
-        if self.comport.isOpen():
-            self.comport.close()
+        if self.comport is not None:
+            if self.comport.isOpen():
+                self.comport.close()
 
     def run(self):
         # self.signal.emit('%s is opened' % self.comport)

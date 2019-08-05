@@ -3,7 +3,7 @@ import time
 import os
 
 from PyQt5 import uic
-from PyQt5.QtWidgets import QMainWindow, QApplication
+from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox
 from PyQt5.QtCore import pyqtSignal
 
 from comthread import comthread
@@ -41,7 +41,7 @@ class AppWindow(QMainWindow, main_dialog):
         self.iscomportopened = False
         self.isopened_barcodeport = False
 
-        """comboBox control 초기화"""
+        """ comboBox control 초기화 """
         self.initComboBox(self.combobox_devport)
 
         # For barcode serial port connetion
@@ -184,9 +184,18 @@ class AppWindow(QMainWindow, main_dialog):
             # !
             """ 바코드를 찍지 않은 경우 메시지를 띄움 """
             self.msglabel.setStyleSheet('color: red')
-            self.msglabel.setText('READ BARCODE NOW! TEST PAUSED...')
+            self.msglabel.setText('READ BARCODE! TEST PAUSED...')
+        elif "ERROR" in statetxt:
+            self.error_msgbox(statetxt)
         else:
             self.startbutton.setEnabled(False)
+
+    def error_msgbox(self, errtxt):
+        msgbox = QMessageBox(self)
+        msgbox.setIcon(QMessageBox.Warning)
+        msgbox.setWindowTitle("Error")
+        msgbox.setText(errtxt)
+        msgbox.exec_()
 
     def clear_log(self):
         self.logtextedit.setPlainText("")
