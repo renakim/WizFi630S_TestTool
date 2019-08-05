@@ -2,6 +2,7 @@ import sys
 import time
 import os
 
+# from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from PyQt5 import uic
 from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox
 from PyQt5.QtCore import pyqtSignal
@@ -208,6 +209,13 @@ class AppWindow(QMainWindow, main_dialog):
 
 
 if __name__ == '__main__':
+    # for fbs
+    # appctxt = ApplicationContext()
+    # maindialog = AppWindow()
+    # maindialog.show()
+    # sys.exit(appctxt.app.exec_())
+
+    # for Pyinstaller
     app = QApplication(sys.argv)
     maindialog = AppWindow()
     maindialog.show()
