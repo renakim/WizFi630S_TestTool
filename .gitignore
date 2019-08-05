@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 target
+build
+dist
 
 # virtualenv
 .venv

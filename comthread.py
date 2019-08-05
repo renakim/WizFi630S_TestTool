@@ -114,6 +114,7 @@ class comthread(QtCore.QThread):
 
     def get_result(self):
         fail_list = []
+        total_result = ""
         # print('get_result()', self.testlist)
 
         self.testlist['00'] = {
@@ -122,6 +123,7 @@ class comthread(QtCore.QThread):
         }
 
         if self.macaddr is not None:
+            self.test_result.emit('\n\n')
             for testnum in self.testlist.keys():
                 # all case
                 # test = testnum + '_' + self.testlist[testnum]['testname']
@@ -130,12 +132,24 @@ class comthread(QtCore.QThread):
                     testnum, self.testlist[testnum]['testname'], self.testlist[testnum]['result'])
                 self.test_result.emit(test)
                 print(test)
+                total_result = total_result + test + '\n'
 
                 if self.testlist[testnum]['result'] is 'FAIL':
                     # fail case
                     fail_list.append(test)
+
+            print('total_result =========>> ', total_result)
+            self.claer_objects()
         else:
             pass
+
+    def claer_objects(self):
+        # 테스트 종료 후 clear
+        print('Clear objects...')
+        self.testlist = {}
+        self.testresult = True
+        f = open('06_test_mac_resp.txt', 'w')
+        f.close()
 
     def check_barcode(self):
         macfile = open('06_test_mac_resp.txt', 'r')
@@ -203,10 +217,11 @@ class comthread(QtCore.QThread):
                             # 임시 log
                             if 'OK' in tmprcv:
                                 self.gpiocheck_result = 'PASS'
-                                self.test_result.emit('GPIO check PASS')
+                                # self.test_result.emit('GPIO check PASS')
                             elif 'FAIL' in tmprcv:
                                 self.gpiocheck_result = 'FAIL'
-                                self.test_result.emit('GPIO check FAIL')
+                                # self.test_result.emit('GPIO check FAIL')
+                                self.testresult = False
                             # 테스트가 끝나면 \n 입력
                             self.substate = 0
                             self.comport.write(b'\n')
