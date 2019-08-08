@@ -37,5 +37,11 @@ pip install -r requirements.txt
 ### Run
 
 ```
-python main.py
+fbs run
+```
+
+### Freeze
+
+```
+fbs freeze
 ```

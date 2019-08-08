@@ -67,7 +67,7 @@
           <property name="minimumSize">
            <size>
             <width>70</width>
-            <height>40</height>
+            <height>30</height>
            </size>
           </property>
           <property name="maximumSize">
@@ -94,7 +94,7 @@
           <property name="minimumSize">
            <size>
             <width>70</width>
-            <height>35</height>
+            <height>30</height>
            </size>
           </property>
           <property name="maximumSize">
@@ -148,7 +148,7 @@
           <property name="minimumSize">
            <size>
             <width>70</width>
-            <height>35</height>
+            <height>30</height>
            </size>
           </property>
           <property name="maximumSize">
@@ -172,7 +172,7 @@
           <property name="minimumSize">
            <size>
             <width>70</width>
-            <height>40</height>
+            <height>30</height>
            </size>
           </property>
           <property name="maximumSize">
@@ -229,7 +229,7 @@
           <property name="minimumSize">
            <size>
             <width>70</width>
-            <height>40</height>
+            <height>30</height>
            </size>
           </property>
           <property name="maximumSize">
@@ -259,7 +259,7 @@
           <property name="minimumSize">
            <size>
             <width>120</width>
-            <height>40</height>
+            <height>30</height>
            </size>
           </property>
           <property name="maximumSize">
@@ -308,8 +308,9 @@
           <property name="font">
            <font>
             <family>Courier</family>
-            <pointsize>12</pointsize>
+            <pointsize>13</pointsize>
             <weight>75</weight>
+            <italic>false</italic>
             <bold>true</bold>
            </font>
           </property>
@@ -325,7 +326,7 @@
         <property name="minimumSize">
          <size>
           <width>535</width>
-          <height>40</height>
+          <height>50</height>
          </size>
         </property>
         <property name="maximumSize">

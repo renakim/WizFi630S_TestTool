@@ -14,8 +14,6 @@ BOOTING = 2
 TESTING = 3
 NORMAL = 4
 
-# Sub state
-
 promptstr = 'root@wizfi630s:/#'
 
 
@@ -29,7 +27,7 @@ class comthread(QtCore.QThread):
         self.alive = True
         self.source_txt = ''
         try:
-            self.comport = serial.Serial(comport, 115200, timeout=1)  # exception 추가?
+            self.comport = serial.Serial(comport, 115200, timeout=1)
         except serial.SerialException as e:
             self.comport = None
             self.signal_state.emit('ERROR:' + str(e))
@@ -42,14 +40,10 @@ class comthread(QtCore.QThread):
         self.macaddr = None
         self.logfile = None
 
-        # for final log
-        # self.total_list = None
-        # self.pass_list = None
-        # self.fail_list = None
-
     def load_testfiles(self):
         filelist = glob.glob("*.txt")
-        filelist.remove('requirements.txt')
+        if 'requirements.txt' in filelist:
+            filelist.remove('requirements.txt')
         # filelist = glob.glob("testfiles/*.txt")
         for file in filelist:
             items = file.split('.')[0].split('_')
@@ -89,21 +83,17 @@ class comthread(QtCore.QThread):
                 if cmdtxt in tmprcv:
                     pass
                 elif promptstr in tmprcv:
-                    # ? 명령을 여러 번 입력해야 결과가 발생하는 case
                     if responsetxt is not "":
-                        #! mac address 저장
+                        # Save mac address
                         if 'mac' in self.testlist[testitem]['testname']:
                             self.macaddr = responsebuffer
-                            # responsebuffer = responsebuffer.replace(":", "")
 
                         if responsetxt in responsebuffer:
-                            # ! 결과 추가
                             self.testlist[testitem]['result'] = 'PASS'
                             self.signal.emit(testitem + ' ' + self.testlist[testitem]['testname'] + ' PASSED')
                             responsebuffer = ""
                             return
                         else:
-                            # !
                             self.testlist[testitem]['result'] = 'FAIL'
                             self.signal.emit(testitem + ' ' + self.testlist[testitem]['testname'] + ' FAILED')
                             self.testresult = False
@@ -127,12 +117,11 @@ class comthread(QtCore.QThread):
         if self.macaddr is not None:
             self.test_result.emit('\n')
             for testnum in self.testlist.keys():
-                # Fail 체크
                 if self.testlist[testnum]['result'] is 'FAIL':
                     # fail case
                     failed_list.append(self.testlist[testnum]['testname'])
 
-            # ! failed_list -> string
+            # failed list to string
             failstr = ",".join(failed_list)
 
             logline = "%s | %s | " % (
@@ -145,7 +134,6 @@ class comthread(QtCore.QThread):
             # log file 저장
             self.test_result.emit(logline)
             self.save_log_oneline(logline)
-
             # self.claer_objects()
         else:
             pass
@@ -179,56 +167,58 @@ class comthread(QtCore.QThread):
                     # fail case
                     failed_list.append(test)
 
-            print('total_result =========>> ', total_result)
-            # total_result 파일로 저장
+            # print('total_result:', total_result)
             self.save_log(total_result)
-
             self.claer_objects()
         else:
             pass
 
     def save_log_oneline(self, logtxt):
-        filename = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_test_oneline_log.txt'
+        filepath = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_test_oneline_log.txt'
 
-        readfile = open(filename, 'r')
-
-        # !
         tested_mac_list = []
-        loglines = readfile.readlines()
+
+        if os.path.isfile(filepath):
+            readfile = open(filepath, 'r+')
+            loglines = readfile.readlines()
+        else:
+            readfile = open(filepath, 'w+')
+            loglines = []
+
         if len(loglines) > 0:
-            loglines[-1] = logtxt + '\n'
+            loglines[-1] = logtxt + '\n'    # last line 대체
         else:
             loglines.append(logtxt + '\n')
-        print('loglines#2', len(loglines), loglines)
+
+        print('loglines:', len(loglines), loglines)
 
         passnum = 0
         failnum = 0
 
-        if len(loglines) > 0:
-            for line in loglines:
-                if 'FAIL' in line or 'PASS' in line:
-                    tmp = line.split('|')
-                    addr = tmp[1].strip()
-                    if addr not in tested_mac_list:
-                        result = tmp[2].strip()
-                        if 'PASS' in result:
-                            passnum = passnum + 1
-                        else:
-                            failnum = failnum + 1
-                        tested_mac_list.append(addr)
+        for line in loglines:
+            if 'FAIL' in line or 'PASS' in line:
+                tmp = line.split('|')
+                addr = tmp[1].strip()
+                if addr not in tested_mac_list:
+                    result = tmp[2].strip()
+                    if 'PASS' in result:
+                        passnum = passnum + 1
+                    else:
+                        failnum = failnum + 1
+                    tested_mac_list.append(addr)
 
-            print('tested maclist', len(tested_mac_list), tested_mac_list)
+        print('tested maclist', len(tested_mac_list), tested_mac_list)
 
         finallog = "Total: %d | Pass: %d | Fail: %d" % (passnum+failnum, passnum, failnum)
         loglines.append(finallog)
 
-        logfile = open(filename, 'w')
+        logfile = open(filepath, 'w')
         logfile.write("".join(loglines))
         logfile.close()
 
     def save_log(self, logtxt):
-        filename = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_test_log.txt'
-        self.logfile = open(filename, 'a+')
+        filepath = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_test_log.txt'
+        self.logfile = open(filepath, 'a+')
         self.logfile.write(logtxt + '\n')
 
     def claer_objects(self):
@@ -259,7 +249,7 @@ class comthread(QtCore.QThread):
 
         while self.alive:
             if self.curstate is IDLE:
-                self.signal.emit('새로운 모듈을 꽂았는 지 확인하시오.')
+                self.signal.emit('새로운 모듈을 꽂았는 지 확인하세요.')
                 self.signal_state.emit('IDLE')
                 self.load_testfiles()
                 self.curstate = READY
@@ -273,14 +263,12 @@ class comthread(QtCore.QThread):
                     tmprcv = recv.strip().decode("utf-8")
                     if self.substate == 0:
                         self.signal.emit(tmprcv)
-                        # if "REBOOT" in tmprcv:
-                        # 부팅 체크 string 변경
+                        # Booting 체크 string
                         if "Booting" in tmprcv:
                             # self.signal.emit(tmprcv)
                             self.signal_state.emit('BOOTING')
                             self.substate = 1
                     elif self.substate == 1:
-                        # 체크 메시지 변경
                         # if "br-lan: link becomes ready" in tmprcv:
                         if "device ra0 entered promiscuous mode" in tmprcv:
                             self.signal_state.emit('NORMAL')
@@ -295,21 +283,18 @@ class comthread(QtCore.QThread):
                             self.curstate = TESTING
                             self.signal_state.emit('TESTING')
                             self.substate = 0
-                    # ! GPIO Check
                     if self.substate == 3:
+                        """ GPIO Check """
                         self.signal.emit(tmprcv)
                         if 'Please choose the operation' in tmprcv:
                             self.signal_state.emit('GPIO')
                             self.comport.write(b'a')
 
                         if 'OK' in tmprcv or 'FAIL' in tmprcv:
-                            # 임시 log
                             if 'OK' in tmprcv:
                                 self.gpiocheck_result = 'PASS'
-                                # self.test_result.emit('GPIO check PASS')
                             elif 'FAIL' in tmprcv:
                                 self.gpiocheck_result = 'FAIL'
-                                # self.test_result.emit('GPIO check FAIL')
                                 self.testresult = False
                             # 테스트가 끝나면 \n 입력
                             self.substate = 0
@@ -322,8 +307,7 @@ class comthread(QtCore.QThread):
                         self.signal.emit(
                             '===============' + testitem + ' ' + self.testlist[testitem]['testname'] + ' is starting ===============')
                         #! 06_test_mac 테스트 시 체크:
-                        # 바코드가 찍히지 않았다면 메시지 띄움: thread 시그널 또는 파일 체크
-                        # 테스트 일시 중단 & 파일 체크
+                        # 바코드가 찍히지 않은 경우, 테스트 일시 중단 & 파일 체크
                         if 'mac' in self.testlist[testitem]['testname']:
                             while not self.check_barcode():
                                 self.signal_state.emit('BARCODE NOT READ')
@@ -371,7 +355,7 @@ class comthread(QtCore.QThread):
                     self.signal_state.emit('FAILED')
 
                 self.signal.emit('ALL test was done')
-                # ! 테스트 결과 확인/출력
+                # 테스트 결과 확인/출력
                 self.get_result_oneline()
                 self.get_result()
                 self.curstate = IDLE

@@ -10,7 +10,7 @@ from PyQt5 import QtCore
 
 class barcodethread(QtCore.QThread):
     barcode_signal = QtCore.pyqtSignal(str)
-    bacode_state_signal = QtCore.pyqtSignal(str)
+    barcode_state_signal = QtCore.pyqtSignal(str)
 
     def __init__(self, comport):
         QtCore.QThread.__init__(self)
@@ -24,7 +24,7 @@ class barcodethread(QtCore.QThread):
 
         self.barcodelog = None
 
-        # START / FORCE(invalid mac 일때 사용자 요청에 의해 강제 진행)
+        # START / FORCE (invalid mac 일때 사용자 요청에 의해 강제 진행)
         self.curstate = 'START'
 
     def claer_file(self):
@@ -38,12 +38,18 @@ class barcodethread(QtCore.QThread):
             f.close()
 
     def save_barcodelog(self, logtxt):
-        filename = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_barcode_log.txt'
-        self.barcodelog = open(filename, 'a+')
+        filepath = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_barcode_log.txt'
+
+        if os.path.isfile(filepath):
+            self.barcodelog = open(filepath, 'a+')
+        else:
+            self.barcodelog = open(filepath, 'w+')
+
         self.barcodelog.write(logtxt + '\n')
         self.barcodelog.close()
 
     def isvalid_mac(self, addr):
+        """ mac 형태 변환 후 올바른 값인지 확인 """
         # 0008DCAABBCC > 00:08:DC:AA:BB:CC
         self.macaddr = ":".join([addr[i:i+2] for i in range(0, len(addr), 2)])
         macexpr = "^([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})$"
@@ -60,6 +66,8 @@ class barcodethread(QtCore.QThread):
             try:
                 if self.comport.isOpen():
                     if 'FORCE' in self.curstate:
+                        # main signal -> invlid mac이지만, 어쩔수 없는 경우 진행
+                        # 예: 바코드 자체가 잘못되었을 때
                         self.write_macaddr()
 
                     recvline = self.comport.readline()
@@ -71,9 +79,8 @@ class barcodethread(QtCore.QThread):
                         if self.isvalid_mac(self.macaddr):
                             self.write_macaddr()
                         else:
-                            self.bacode_state_signal.emit('INVALID_' + self.macaddr)
+                            self.barcode_state_signal.emit('INVALID_' + self.macaddr)
                             logtxt = logtxt + ' ** Invalid Mac'
-                            # main signal -> invlid mac이지만 그냥 진행해라
 
                         self.barcode_signal.emit(logtxt)
                         self.save_barcodelog(logtxt)
