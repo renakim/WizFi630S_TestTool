@@ -79,9 +79,8 @@ class AppWindow(QMainWindow, main_dialog):
         """ Barcode 기기 연결 com port """
         self.barcodethread = None
 
-    """ 콤보박스에 아이템 입력 """
-
     def initComboBox(self, combobox):
+        """ 콤보박스에 아이템 입력 """
         comportlist = [comport.device for comport in serial.tools.list_ports.comports()]
         for i in range(len(comportlist)):
             try:
@@ -91,15 +90,15 @@ class AppWindow(QMainWindow, main_dialog):
             except serial.SerialException as e:
                 sys.stdout.write(str(e))
 
-    """ rescan pushbutton용 Event handler"""
-
     def rescanButtonPressed(self):
+        """ rescan pushbutton용 Event handler """
         self.combobox_devport.clear()
+        self.combobox_barcode.clear()
         self.initComboBox(self.combobox_devport)
-
-    """ open pushbutton용 Event handler"""
+        self.initComboBox(self.combobox_barcode)
 
     def openButtonPressed(self):
+        """ open pushbutton용 Event handler """
         if self.iscomportopened is False:
             """ open com port """
             self.iscomportopened = True
@@ -122,14 +121,16 @@ class AppWindow(QMainWindow, main_dialog):
             self.button_open_devport.setText('Open')
 
     def openBarcodeButtonPressed(self):
+        """ Barcode port open button """
         if self.isopened_barcodeport is False:
             self.isopened_barcodeport = True
             self.logtextedit_barcode.appendPlainText('[INFO] Barcode comport is opened')
             self.barcodethread = barcodethread(self.combobox_barcode.currentText())
             self.barcodethread.start()
             self.barcodethread.barcode_signal.connect(self.appendbarcodelog)
+            self.barcodethread.bacode_state_signal.connect(self.barcode_statehandler)
             self.button_open_barcodeport.setText('Close\n(barcode)')
-            if self.iscomportopened:
+            if self.iscomportopened and self.isopened_barcodeport:
                 self.startbutton.setEnabled(True)
         else:
             self.isopened_barcodeport = False
@@ -143,7 +144,7 @@ class AppWindow(QMainWindow, main_dialog):
     def startButtonPressed(self):
         self.startbutton.setEnabled(False)
         self.comthread.curstate = BOOTING
-        self.barcodethread.curstate = 'start'
+        self.barcodethread.curstate = 'START'
 
     def appendlogtext(self, logtxt):
         # print(len(logtxt), logtxt)
@@ -161,6 +162,7 @@ class AppWindow(QMainWindow, main_dialog):
             self.msglabel.setStyleSheet('color: red')
             self.msglabel.setText('FAILED')
             self.startbutton.setEnabled(True)
+            # ! barcodethread로 종료 신호
         elif "PASSED" in statetxt:
             """ Start button을 Enable 시키고 Label에 'PASSED'를 표시한다. """
             self.msglabel.setStyleSheet('color: green')
@@ -176,7 +178,9 @@ class AppWindow(QMainWindow, main_dialog):
             self.msglabel.setText('TESTING...')
         elif "IDLE" in statetxt:
             """ Start button을 Enable 시킨다. """
-            self.startbutton.setEnabled(True)
+            # self.startbutton.setEnabled(True)
+            if self.iscomportopened and self.isopened_barcodeport:
+                self.startbutton.setEnabled(True)
         elif "GPIO" in statetxt:
             """ """
             self.msglabel.setStyleSheet('color: green')
@@ -187,16 +191,46 @@ class AppWindow(QMainWindow, main_dialog):
             self.msglabel.setStyleSheet('color: red')
             self.msglabel.setText('READ BARCODE! TEST PAUSED...')
         elif "ERROR" in statetxt:
-            self.error_msgbox(statetxt)
+            self.msgbox_error(statetxt)
         else:
             self.startbutton.setEnabled(False)
 
-    def error_msgbox(self, errtxt):
+    def barcode_statehandler(self, statetxt):
+        """
+        mac address case
+        : OK / 형태가 맞지 않음(invalid) / 중복 / 불일치
+        """
+        if 'INVALID' in statetxt:
+            txt = statetxt.split('_')
+            self.msgbox_invalidmac(txt)
+
+    def msgbox_error(self, errtxt):
         msgbox = QMessageBox(self)
         msgbox.setIcon(QMessageBox.Warning)
         msgbox.setWindowTitle("Error")
         msgbox.setText(errtxt)
         msgbox.exec_()
+
+    def msgbox_invalidmac(self, txt):
+        msgbox = QMessageBox(self)
+        reply = msgbox.question(
+            self, 'Warning',
+            'Invalid mac address: %s\nRetry to read barcode.\nIf press "No" button, use invalid address.' % txt[1],
+            QMessageBox.Yes | QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            pass
+        else:
+            # Invalid mac으로 테스트 진행
+            self.barcodethread.curstate = 'FORCE'
+
+    def msgbox_question(self, title, txt):
+        msgbox = QMessageBox(self)
+        reply = msgbox.question(self, title, txt,
+                                QMessageBox.Yes | QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            return True
+        else:
+            return False
 
     def clear_log(self):
         self.logtextedit.setPlainText("")

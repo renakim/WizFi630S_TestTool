@@ -3,54 +3,86 @@ import threading
 import serial
 import os
 import glob
+import re
 
 from PyQt5 import QtCore
 
 
 class barcodethread(QtCore.QThread):
     barcode_signal = QtCore.pyqtSignal(str)
-    start_signal = QtCore.pyqtSignal(str)
+    bacode_state_signal = QtCore.pyqtSignal(str)
 
     def __init__(self, comport):
         QtCore.QThread.__init__(self)
 
         self.alive = True
-        self.init_file()
-        self.isread_mac = False
-        self.curstate = ""
+        self.claer_file()
+        self.macaddr = None
 
         # barcode 기기 연결 port
         self.comport = serial.Serial(comport, 115200, timeout=1)
 
-    def init_file(self):
-        # 파일 내용 초기화
+        self.barcodelog = None
+
+        # START / FORCE(invalid mac 일때 사용자 요청에 의해 강제 진행)
+        self.curstate = 'START'
+
+    def claer_file(self):
         f = open('06_test_mac_resp.txt', 'w')
         f.close()
 
-    def write_macaddr(self, addr):
-        f = open('06_test_mac_resp.txt', 'w')
-        f.write(addr)
-        f.close()
+    def write_macaddr(self):
+        if self.macaddr is not None:
+            f = open('06_test_mac_resp.txt', 'w')
+            f.write(self.macaddr)
+            f.close()
+
+    def save_barcodelog(self, logtxt):
+        filename = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_barcode_log.txt'
+        self.barcodelog = open(filename, 'a+')
+        self.barcodelog.write(logtxt + '\n')
+        self.barcodelog.close()
+
+    def isvalid_mac(self, addr):
+        # 0008DCAABBCC > 00:08:DC:AA:BB:CC
+        self.macaddr = ":".join([addr[i:i+2] for i in range(0, len(addr), 2)])
+        macexpr = "^([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})$"
+        prog = re.compile(macexpr)
+        if prog.match(self.macaddr):
+            print("Valid Mac: %s\r\n" % self.macaddr)
+            return True
+        else:
+            print("Invalid Mac: %s\r\n" % self.macaddr)
+            return False
 
     def run(self):
         while self.alive:
             try:
-                if self.start_signal:
-                    pass
                 if self.comport.isOpen():
+                    if 'FORCE' in self.curstate:
+                        self.write_macaddr()
+
                     recvline = self.comport.readline()
                     if recvline.decode() is not "":
+                        self.macaddr = recvline.decode().strip()
                         curr_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-                        logtxt = "[%s] %s" % (curr_time, recvline.decode())
+                        logtxt = "[%s] %s" % (curr_time, self.macaddr)
                         print('barcode mac address', logtxt)
-                        self.isread_mac = True
-                        self.write_macaddr(recvline.decode())
+                        if self.isvalid_mac(self.macaddr):
+                            self.write_macaddr()
+                        else:
+                            self.bacode_state_signal.emit('INVALID_' + self.macaddr)
+                            logtxt = logtxt + ' ** Invalid Mac'
+                            # main signal -> invlid mac이지만 그냥 진행해라
+
                         self.barcode_signal.emit(logtxt)
+                        self.save_barcodelog(logtxt)
+
             except Exception as e:
                 print('barcodethread', e)
 
     def stop(self):
-        self.init_file()
+        self.claer_file()
         self.alive = False
         if self.comport.isOpen():
             self.comport.close()

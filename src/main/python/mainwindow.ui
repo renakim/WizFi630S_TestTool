@@ -66,8 +66,113 @@
          <widget class="QPushButton" name="button_open_devport">
           <property name="minimumSize">
            <size>
+            <width>70</width>
+            <height>40</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
             <width>100</width>
+            <height>50</height>
+           </size>
+          </property>
+          <property name="font">
+           <font>
+            <family>Courier</family>
+            <pointsize>12</pointsize>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Open</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="combobox_devport">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>35</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>100</width>
+            <height>50</height>
+           </size>
+          </property>
+          <property name="font">
+           <font>
+            <family>Courier</family>
+            <pointsize>12</pointsize>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label">
+          <property name="minimumSize">
+           <size>
+            <width>110</width>
             <height>45</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>110</width>
+            <height>50</height>
+           </size>
+          </property>
+          <property name="font">
+           <font>
+            <family>Courier</family>
+            <pointsize>11</pointsize>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>WizFi630S</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="7">
+         <widget class="QComboBox" name="combobox_barcode">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>35</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>100</width>
+            <height>50</height>
+           </size>
+          </property>
+          <property name="font">
+           <font>
+            <family>Courier</family>
+            <pointsize>12</pointsize>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="8">
+         <widget class="QPushButton" name="button_open_barcodeport">
+          <property name="minimumSize">
+           <size>
+            <width>70</width>
+            <height>40</height>
            </size>
           </property>
           <property name="maximumSize">
@@ -123,8 +228,8 @@
          <widget class="QPushButton" name="rescanbutton">
           <property name="minimumSize">
            <size>
-            <width>100</width>
-            <height>45</height>
+            <width>70</width>
+            <height>40</height>
            </size>
           </property>
           <property name="maximumSize">
@@ -149,39 +254,12 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="8">
-         <widget class="QPushButton" name="button_open_barcodeport">
-          <property name="minimumSize">
-           <size>
-            <width>100</width>
-            <height>45</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>100</width>
-            <height>50</height>
-           </size>
-          </property>
-          <property name="font">
-           <font>
-            <family>Courier</family>
-            <pointsize>12</pointsize>
-            <weight>75</weight>
-            <bold>true</bold>
-           </font>
-          </property>
-          <property name="text">
-           <string>Open</string>
-          </property>
-         </widget>
-        </item>
         <item row="0" column="4">
          <widget class="QPushButton" name="startbutton">
           <property name="minimumSize">
            <size>
-            <width>140</width>
-            <height>45</height>
+            <width>120</width>
+            <height>40</height>
            </size>
           </property>
           <property name="maximumSize">
@@ -189,6 +267,43 @@
             <width>140</width>
             <height>50</height>
            </size>
+          </property>
+          <property name="palette">
+           <palette>
+            <active>
+             <colorrole role="ButtonText">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>0</red>
+                <green>0</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </colorrole>
+            </active>
+            <inactive>
+             <colorrole role="ButtonText">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>0</red>
+                <green>0</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </colorrole>
+            </inactive>
+            <disabled>
+             <colorrole role="ButtonText">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>120</red>
+                <green>120</green>
+                <blue>120</blue>
+               </color>
+              </brush>
+             </colorrole>
+            </disabled>
+           </palette>
           </property>
           <property name="font">
            <font>
@@ -203,84 +318,6 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="7">
-         <widget class="QComboBox" name="combobox_barcode">
-          <property name="minimumSize">
-           <size>
-            <width>80</width>
-            <height>45</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>100</width>
-            <height>50</height>
-           </size>
-          </property>
-          <property name="font">
-           <font>
-            <family>Courier</family>
-            <pointsize>12</pointsize>
-            <weight>75</weight>
-            <bold>true</bold>
-           </font>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label">
-          <property name="minimumSize">
-           <size>
-            <width>110</width>
-            <height>45</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>110</width>
-            <height>50</height>
-           </size>
-          </property>
-          <property name="font">
-           <font>
-            <family>Courier</family>
-            <pointsize>11</pointsize>
-            <weight>75</weight>
-            <bold>true</bold>
-           </font>
-          </property>
-          <property name="text">
-           <string>WizFi630S</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignCenter</set>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QComboBox" name="combobox_devport">
-          <property name="minimumSize">
-           <size>
-            <width>100</width>
-            <height>45</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>100</width>
-            <height>50</height>
-           </size>
-          </property>
-          <property name="font">
-           <font>
-            <family>Courier</family>
-            <pointsize>12</pointsize>
-            <weight>75</weight>
-            <bold>true</bold>
-           </font>
-          </property>
-         </widget>
-        </item>
        </layout>
       </item>
       <item row="1" column="0">
@@ -288,7 +325,7 @@
         <property name="minimumSize">
          <size>
           <width>535</width>
-          <height>35</height>
+          <height>40</height>
          </size>
         </property>
         <property name="maximumSize">
@@ -332,7 +369,7 @@
           <property name="maximumSize">
            <size>
             <width>1070</width>
-            <height>340</height>
+            <height>360</height>
            </size>
           </property>
           <property name="font">
@@ -382,7 +419,7 @@
           <property name="maximumSize">
            <size>
             <width>1070</width>
-            <height>150</height>
+            <height>130</height>
            </size>
           </property>
           <property name="font">
