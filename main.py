@@ -21,6 +21,8 @@ TESTING = 3
 NORMAL = 4
 GPIOCHECK = 5
 
+VERSION = 'V0.9.0'
+
 
 def resource_path(relative_path):
     # Get absolute path to resource, works for dev and for PyInstaller
@@ -38,6 +40,8 @@ class AppWindow(QMainWindow, main_dialog):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
+
+        self.setWindowTitle('WIZnet WizFi630S Test Tool ' + VERSION)
 
         self.iscomportopened = False
         self.isopened_barcodeport = False
@@ -92,6 +96,12 @@ class AppWindow(QMainWindow, main_dialog):
 
     def rescanButtonPressed(self):
         """ rescan pushbutton용 Event handler """
+        # ! 기존 연결 close
+        # if self.comthread is not None:
+        #     self.comthread.stop()
+        # if self.barcodethread is not None:
+        #     self.barcodethread.stop()
+
         self.combobox_devport.clear()
         self.combobox_barcode.clear()
         self.initComboBox(self.combobox_devport)
@@ -99,44 +109,61 @@ class AppWindow(QMainWindow, main_dialog):
 
     def openButtonPressed(self):
         """ open pushbutton용 Event handler """
-        if self.iscomportopened is False:
-            """ open com port """
-            self.iscomportopened = True
-            self.logtextedit.appendPlainText('[INFO] Comport is opened')
-            self.comthread = comthread(self.combobox_devport.currentText())
-            # self.sig.connect(self.comthread.on_source)
-            # self.sig.emit('start thread')
-            self.comthread.start()
-            self.comthread.signal.connect(self.appendlogtext)
-            self.comthread.signal_state.connect(self.statehandler)
-            # ! test result
-            self.comthread.test_result.connect(self.append_resulttext)
-            self.button_open_devport.setText('Close')
-        else:
-            """ close com port """
-            self.iscomportopened = False
-            self.logtextedit.appendPlainText('[INFO] Comport is closed')
-            self.comthread.stop()
-            # self.sig.emit('stop thread')
-            self.button_open_devport.setText('Open')
+        try:
+            if self.iscomportopened is False:
+                """ open com port """
+                self.iscomportopened = True
+                self.logtextedit.appendPlainText('[INFO] Comport is opened')
+                self.comthread = comthread(self.combobox_devport.currentText())
+                # self.sig.connect(self.comthread.on_source)
+                # self.sig.emit('start thread')
+                self.comthread.start()
+                self.comthread.signal.connect(self.appendlogtext)
+                self.comthread.signal_state.connect(self.statehandler)
+                # ! test result
+                self.comthread.test_result.connect(self.append_resulttext)
+                self.button_open_devport.setText('Close')
+            else:
+                """ close com port """
+                self.iscomportopened = False
+                self.logtextedit.appendPlainText('[INFO] Comport is closed')
+                self.comthread.stop()
+                # self.sig.emit('stop thread')
+                self.button_open_devport.setText('Open')
+            self.enable_rescanbtn()
+        except Exception as e:
+            print('ERROR: openButtonPressed:', e)
 
     def openBarcodeButtonPressed(self):
         """ Barcode port open button """
-        if self.isopened_barcodeport is False:
-            self.isopened_barcodeport = True
-            self.logtextedit_barcode.appendPlainText('[INFO] Barcode comport is opened')
-            self.barcodethread = barcodethread(self.combobox_barcode.currentText())
-            self.barcodethread.start()
-            self.barcodethread.barcode_signal.connect(self.appendbarcodelog)
-            self.barcodethread.bacode_state_signal.connect(self.barcode_statehandler)
-            self.button_open_barcodeport.setText('Close\n(barcode)')
-            if self.iscomportopened and self.isopened_barcodeport:
-                self.startbutton.setEnabled(True)
+        try:
+            if self.isopened_barcodeport is False:
+                self.isopened_barcodeport = True
+                self.logtextedit_barcode.appendPlainText('[INFO] Barcode comport is opened')
+                self.barcodethread = barcodethread(self.combobox_barcode.currentText())
+                self.barcodethread.start()
+                self.barcodethread.barcode_signal.connect(self.appendbarcodelog)
+                self.barcodethread.barcode_state_signal.connect(self.barcode_statehandler)
+                self.button_open_barcodeport.setText('Close\n(barcode)')
+                self.enable_startbtn()
+            else:
+                self.isopened_barcodeport = False
+                self.logtextedit_barcode.appendPlainText('[INFO] Barcode comport is closed')
+                self.barcodethread.stop()
+                self.button_open_barcodeport.setText('Open\n(barcode)')
+            self.enable_rescanbtn()
+        except Exception as e:
+            print('ERROR: openBarcodeButtonPressed:', e)
+
+    def enable_startbtn(self):
+        if self.iscomportopened and self.isopened_barcodeport:
+            self.startbutton.setEnabled(True)
+
+    def enable_rescanbtn(self):
+        if not self.iscomportopened and not self.isopened_barcodeport:
+            self.rescanbutton.setEnabled(True)
         else:
-            self.isopened_barcodeport = False
-            self.logtextedit_barcode.appendPlainText('[INFO] Barcode comport is closed')
-            self.barcodethread.stop()
-            self.button_open_barcodeport.setText('Open\n(barcode)')
+            self.rescanbutton.setEnabled(False)
 
     def appendbarcodelog(self, logtxt):
         self.logtextedit_barcode.appendPlainText(logtxt)
@@ -179,8 +206,7 @@ class AppWindow(QMainWindow, main_dialog):
         elif "IDLE" in statetxt:
             """ Start button을 Enable 시킨다. """
             # self.startbutton.setEnabled(True)
-            if self.iscomportopened and self.isopened_barcodeport:
-                self.startbutton.setEnabled(True)
+            self.enable_startbtn()
         elif "GPIO" in statetxt:
             """ """
             self.msglabel.setStyleSheet('color: green')
@@ -196,15 +222,13 @@ class AppWindow(QMainWindow, main_dialog):
             self.startbutton.setEnabled(False)
 
     def barcode_statehandler(self, statetxt):
-        """
-        mac address case
-        : OK / 형태가 맞지 않음(invalid) / 중복 / 불일치
-        """
+        """ barcode reader handler """
         if 'INVALID' in statetxt:
             txt = statetxt.split('_')
             self.msgbox_invalidmac(txt)
 
     def msgbox_error(self, errtxt):
+        """ Error Messagebox """
         msgbox = QMessageBox(self)
         msgbox.setIcon(QMessageBox.Warning)
         msgbox.setWindowTitle("Error")
@@ -212,6 +236,7 @@ class AppWindow(QMainWindow, main_dialog):
         msgbox.exec_()
 
     def msgbox_invalidmac(self, txt):
+        """ 바코드 리더에서 잘못된 값이 들어왔을 때 """
         msgbox = QMessageBox(self)
         reply = msgbox.question(
             self, 'Warning',
@@ -222,15 +247,6 @@ class AppWindow(QMainWindow, main_dialog):
         else:
             # Invalid mac으로 테스트 진행
             self.barcodethread.curstate = 'FORCE'
-
-    def msgbox_question(self, title, txt):
-        msgbox = QMessageBox(self)
-        reply = msgbox.question(self, title, txt,
-                                QMessageBox.Yes | QMessageBox.No)
-        if reply == QMessageBox.Yes:
-            return True
-        else:
-            return False
 
     def clear_log(self):
         self.logtextedit.setPlainText("")

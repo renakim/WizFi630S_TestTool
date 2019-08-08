@@ -3,7 +3,7 @@ block_cipher = None
 a = Analysis(['main.py'],
              pathex=['', '.'],
              binaries=[],
-             datas=[('*.ui','./')],
+             datas=[('mainwindow.ui','./')],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],
@@ -24,7 +24,7 @@ exe = EXE(pyz,
           strip=False,
           upx=True,
           runtime_tmpdir=None,
-          console=False, 
+          console=True, 
           icon='')
 
 #coll = COLLECT(exe, a.binaries, a.zipfiles, a.datas, 
