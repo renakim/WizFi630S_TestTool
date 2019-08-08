@@ -1,18 +1,17 @@
 import sys
 import time
 import os
+import logging
 
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from PyQt5 import uic
 from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox
 from PyQt5.QtCore import pyqtSignal
-
-from comthread import comthread
-from barcodethread import barcodethread
 import serial
 import serial.tools.list_ports
 
-import logging
+from comthread import comthread
+from barcodethread import barcodethread
 
 IDLE = 0
 READY = 1
@@ -82,6 +81,14 @@ class AppWindow(QMainWindow, main_dialog):
 
         """ Barcode 기기 연결 com port """
         self.barcodethread = None
+
+        """ log directory 생성 """
+        self.make_logdir()
+
+    def make_logdir(self):
+        logdir = "./logs"
+        if not os.path.isdir(logdir):
+            os.mkdir(logdir)
 
     def initComboBox(self, combobox):
         """ 콤보박스에 아이템 입력 """

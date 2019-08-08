@@ -38,8 +38,13 @@ class barcodethread(QtCore.QThread):
             f.close()
 
     def save_barcodelog(self, logtxt):
-        filename = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_barcode_log.txt'
-        self.barcodelog = open(filename, 'a+')
+        filepath = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_barcode_log.txt'
+
+        if os.path.isfile(filepath):
+            self.barcodelog = open(filepath, 'a+')
+        else:
+            self.barcodelog = open(filepath, 'w+')
+
         self.barcodelog.write(logtxt + '\n')
         self.barcodelog.close()
 

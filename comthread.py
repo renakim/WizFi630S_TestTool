@@ -174,47 +174,51 @@ class comthread(QtCore.QThread):
             pass
 
     def save_log_oneline(self, logtxt):
-        filename = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_test_oneline_log.txt'
+        filepath = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_test_oneline_log.txt'
 
-        readfile = open(filename, 'r')
-
-        # !
         tested_mac_list = []
-        loglines = readfile.readlines()
+
+        if os.path.isfile(filepath):
+            readfile = open(filepath, 'r+')
+            loglines = readfile.readlines()
+        else:
+            readfile = open(filepath, 'w+')
+            loglines = []
+
         if len(loglines) > 0:
-            loglines[-1] = logtxt + '\n'
+            loglines[-1] = logtxt + '\n'    # last line 대체
         else:
             loglines.append(logtxt + '\n')
-        print('loglines#2', len(loglines), loglines)
+
+        print('loglines:', len(loglines), loglines)
 
         passnum = 0
         failnum = 0
 
-        if len(loglines) > 0:
-            for line in loglines:
-                if 'FAIL' in line or 'PASS' in line:
-                    tmp = line.split('|')
-                    addr = tmp[1].strip()
-                    if addr not in tested_mac_list:
-                        result = tmp[2].strip()
-                        if 'PASS' in result:
-                            passnum = passnum + 1
-                        else:
-                            failnum = failnum + 1
-                        tested_mac_list.append(addr)
+        for line in loglines:
+            if 'FAIL' in line or 'PASS' in line:
+                tmp = line.split('|')
+                addr = tmp[1].strip()
+                if addr not in tested_mac_list:
+                    result = tmp[2].strip()
+                    if 'PASS' in result:
+                        passnum = passnum + 1
+                    else:
+                        failnum = failnum + 1
+                    tested_mac_list.append(addr)
 
-            print('tested maclist', len(tested_mac_list), tested_mac_list)
+        print('tested maclist', len(tested_mac_list), tested_mac_list)
 
         finallog = "Total: %d | Pass: %d | Fail: %d" % (passnum+failnum, passnum, failnum)
         loglines.append(finallog)
 
-        logfile = open(filename, 'w')
+        logfile = open(filepath, 'w')
         logfile.write("".join(loglines))
         logfile.close()
 
     def save_log(self, logtxt):
-        filename = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_test_log.txt'
-        self.logfile = open(filename, 'a+')
+        filepath = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_test_log.txt'
+        self.logfile = open(filepath, 'a+')
         self.logfile.write(logtxt + '\n')
 
     def claer_objects(self):
