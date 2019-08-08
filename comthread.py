@@ -40,10 +40,15 @@ class comthread(QtCore.QThread):
 
         self.gpiocheck_result = None
         self.macaddr = None
+        self.logfile = None
+
+        # for final log
+        # self.total_list = None
+        # self.pass_list = None
+        # self.fail_list = None
 
     def load_testfiles(self):
         filelist = glob.glob("*.txt")
-        # ! 예외 파일 제거 / 하위 폴더 사용?
         filelist.remove('requirements.txt')
         # filelist = glob.glob("testfiles/*.txt")
         for file in filelist:
@@ -89,7 +94,7 @@ class comthread(QtCore.QThread):
                         #! mac address 저장
                         if 'mac' in self.testlist[testitem]['testname']:
                             self.macaddr = responsebuffer
-                            responsebuffer = responsebuffer.replace(":", "")
+                            # responsebuffer = responsebuffer.replace(":", "")
 
                         if responsetxt in responsebuffer:
                             # ! 결과 추가
@@ -112,12 +117,45 @@ class comthread(QtCore.QThread):
             except serial.SerialException as e:
                 sys.stdout.write(str(e))
 
+    def get_result_oneline(self):
+        failed_list = []
+        self.testlist['07'] = {
+            'testname': 'gpio check',
+            'result': self.gpiocheck_result
+        }
+
+        if self.macaddr is not None:
+            self.test_result.emit('\n')
+            for testnum in self.testlist.keys():
+                # Fail 체크
+                if self.testlist[testnum]['result'] is 'FAIL':
+                    # fail case
+                    failed_list.append(self.testlist[testnum]['testname'])
+
+            # ! failed_list -> string
+            failstr = ",".join(failed_list)
+
+            logline = "%s | %s | " % (
+                time.strftime('%Y-%m-%d, %H:%M:%S', time.localtime(time.time())), self.macaddr)
+            if self.testresult:
+                logline = logline + 'PASS'
+            else:
+                logline = logline + 'FAIL' + ' | ' + failstr
+
+            # log file 저장
+            self.test_result.emit(logline)
+            self.save_log_oneline(logline)
+
+            # self.claer_objects()
+        else:
+            pass
+
     def get_result(self):
-        fail_list = []
+        failed_list = []
         total_result = ""
         # print('get_result()', self.testlist)
 
-        self.testlist['00'] = {
+        self.testlist['07'] = {
             'testname': 'gpio check',
             'result': self.gpiocheck_result
         }
@@ -127,21 +165,71 @@ class comthread(QtCore.QThread):
             for testnum in self.testlist.keys():
                 # all case
                 # test = testnum + '_' + self.testlist[testnum]['testname']
-                test = "[%s][%s] %s) %-15s | %-5s" % (
-                    time.strftime('%c', time.localtime(time.time())), self.macaddr,
+                test = "%s | %s | %s) %-15s | %-5s" % (
+                    time.strftime('%Y-%m-%d, %H:%M:%S', time.localtime(time.time())), self.macaddr,
                     testnum, self.testlist[testnum]['testname'], self.testlist[testnum]['result'])
                 self.test_result.emit(test)
                 print(test)
-                total_result = total_result + test + '\n'
+                if 'FAIL' in test:
+                    total_result = total_result + test + '<<=====' + '\n'
+                else:
+                    total_result = total_result + test + '\n'
 
                 if self.testlist[testnum]['result'] is 'FAIL':
                     # fail case
-                    fail_list.append(test)
+                    failed_list.append(test)
 
             print('total_result =========>> ', total_result)
+            # total_result 파일로 저장
+            self.save_log(total_result)
+
             self.claer_objects()
         else:
             pass
+
+    def save_log_oneline(self, logtxt):
+        filename = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_test_oneline_log.txt'
+
+        readfile = open(filename, 'r')
+
+        # !
+        tested_mac_list = []
+        loglines = readfile.readlines()
+        if len(loglines) > 0:
+            loglines[-1] = logtxt + '\n'
+        else:
+            loglines.append(logtxt + '\n')
+        print('loglines#2', len(loglines), loglines)
+
+        passnum = 0
+        failnum = 0
+
+        if len(loglines) > 0:
+            for line in loglines:
+                if 'FAIL' in line or 'PASS' in line:
+                    tmp = line.split('|')
+                    addr = tmp[1].strip()
+                    if addr not in tested_mac_list:
+                        result = tmp[2].strip()
+                        if 'PASS' in result:
+                            passnum = passnum + 1
+                        else:
+                            failnum = failnum + 1
+                        tested_mac_list.append(addr)
+
+            print('tested maclist', len(tested_mac_list), tested_mac_list)
+
+        finallog = "Total: %d | Pass: %d | Fail: %d" % (passnum+failnum, passnum, failnum)
+        loglines.append(finallog)
+
+        logfile = open(filename, 'w')
+        logfile.write("".join(loglines))
+        logfile.close()
+
+    def save_log(self, logtxt):
+        filename = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_test_log.txt'
+        self.logfile = open(filename, 'a+')
+        self.logfile.write(logtxt + '\n')
 
     def claer_objects(self):
         # 테스트 종료 후 clear
@@ -150,6 +238,7 @@ class comthread(QtCore.QThread):
         self.testresult = True
         f = open('06_test_mac_resp.txt', 'w')
         f.close()
+        self.logfile.close()
 
     def check_barcode(self):
         macfile = open('06_test_mac_resp.txt', 'r')
@@ -202,7 +291,7 @@ class comthread(QtCore.QThread):
                             self.signal.emit(tmprcv)
                     elif self.substate == 2:
                         self.signal.emit(tmprcv)
-                        if "root@wizfi630s:" in tmprcv:
+                        if promptstr in tmprcv:
                             self.curstate = TESTING
                             self.signal_state.emit('TESTING')
                             self.substate = 0
@@ -228,50 +317,52 @@ class comthread(QtCore.QThread):
                             self.comport.write(b'\n')
 
             elif self.curstate is TESTING:
+                try:
+                    for testitem in self.testlist.keys():
+                        self.signal.emit(
+                            '===============' + testitem + ' ' + self.testlist[testitem]['testname'] + ' is starting ===============')
+                        #! 06_test_mac 테스트 시 체크:
+                        # 바코드가 찍히지 않았다면 메시지 띄움: thread 시그널 또는 파일 체크
+                        # 테스트 일시 중단 & 파일 체크
+                        if 'mac' in self.testlist[testitem]['testname']:
+                            while not self.check_barcode():
+                                self.signal_state.emit('BARCODE NOT READ')
+                            self.signal_state.emit('TESTING')
 
-                for testitem in self.testlist.keys():
-                    self.signal.emit(
-                        '===============' + testitem + ' ' + self.testlist[testitem]['testname'] + ' is starting ===============')
-                    #! 06_test_mac 테스트 시 체크:
-                    # 바코드가 찍히지 않았다면 메시지 띄움: thread 시그널 또는 파일 체크
-                    # 테스트 일시 중단 & 파일 체크
-                    if 'mac' in self.testlist[testitem]['testname']:
-                        while not self.check_barcode():
-                            self.signal_state.emit('BARCODE NOT READ')
-                        self.signal_state.emit('TESTING')
+                        print('TESTING Check', self.testlist[testitem])
+                        cmdfile = open(self.testlist[testitem]['req'], "r")
+                        respfile = open(self.testlist[testitem]['resp'], "r")
+                        responsetxt = respfile.readline()
+                        responsetxt = responsetxt.strip()
+                        # self.signal.emit(responsetxt)
+                        cmdlines = cmdfile.readlines()
 
-                    print('TESTING Check', self.testlist[testitem])
-                    cmdfile = open(self.testlist[testitem]['req'], "r")
-                    respfile = open(self.testlist[testitem]['resp'], "r")
-                    responsetxt = respfile.readline()
-                    responsetxt = responsetxt.strip()
-                    # self.signal.emit(responsetxt)
-                    cmdlines = cmdfile.readlines()
-
-                    if len(cmdlines) > 1:
-                        for index, line in enumerate(cmdlines):
-                            print(index, line, sep=' ')
-                            print(line.encode())
+                        if len(cmdlines) > 1:
+                            for index, line in enumerate(cmdlines):
+                                print(index, line, sep=' ')
+                                print(line.encode())
+                                self.comport.write(line.encode())
+                                recvline = self.comport.readline()
+                                print(recvline.strip().decode('utf-8'))
+                                self.signal.emit(recvline.strip().decode('utf-8'))
+                                self.comport.write(b'\n')
+                                if index < (len(cmdlines) - 1):
+                                    self.responsecheck(line, "", testitem)
+                                else:
+                                    self.responsecheck(line, responsetxt, testitem)
+                                time.sleep(1)
+                        else:
+                            line = cmdlines[0]
+                            # line += '\r\n'
                             self.comport.write(line.encode())
                             recvline = self.comport.readline()
-                            print(recvline.strip().decode('utf-8'))
+                            # print(recvline)
                             self.signal.emit(recvline.strip().decode('utf-8'))
-                            self.comport.write(b'\n')
-                            if index < (len(cmdlines) - 1):
-                                self.responsecheck(line, "", testitem)
-                            else:
-                                self.responsecheck(line, responsetxt, testitem)
+                            self.comport.write(b'\r\n')
+                            self.responsecheck(line, responsetxt, testitem)
                             time.sleep(1)
-                    else:
-                        line = cmdlines[0]
-                        # line += '\r\n'
-                        self.comport.write(line.encode())
-                        recvline = self.comport.readline()
-                        # print(recvline)
-                        self.signal.emit(recvline.strip().decode('utf-8'))
-                        self.comport.write(b'\r\n')
-                        self.responsecheck(line, responsetxt, testitem)
-                        time.sleep(1)
+                except Exception as e:
+                    print('comthread TESTING error', e)
 
                 # ? 하나라도 Fail이 발생하면 Fail로 판단
                 if self.testresult:
@@ -281,6 +372,7 @@ class comthread(QtCore.QThread):
 
                 self.signal.emit('ALL test was done')
                 # ! 테스트 결과 확인/출력
+                self.get_result_oneline()
                 self.get_result()
                 self.curstate = IDLE
 

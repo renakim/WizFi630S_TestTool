@@ -1,1 +1,1 @@
-ifconfig eth0.2 | grep  'inet addr:' | awk '{print $2}' | cut -d: -f2 | cut -d. -f1,2
+val=$(ifconfig eth0.2 | grep  'RX packets:' | awk '{print $2}' | cut -d: -f2 | cut -d. -f1,2); if [ $val -ne 0 ]; then echo 'true'; fi;
