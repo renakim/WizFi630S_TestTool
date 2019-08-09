@@ -1,8 +1,1 @@
-stty -F /dev/ttyS0 115200 raw -echo
-stty -F /dev/ttyUSB0 115200 raw -echo
-(cat /dev/ttyS0 > /tmp/ttyS0)&
-(cat /dev/ttyUSB0 > /tmp/ttyUSB0)&
-echo 'abcdefghijklmnipqrstuvwxyz1234567890abcdefghijklmnipqrstuvwxyz1234567890abcdefghijklmnipqrstuvwxyz1234567890abcdefghijklmnipqrstuvwxyz1234567890' > /dev/ttyS0
-echo 'abcdefghijklmnipqrstuvwxyz1234567890abcdefghijklmnipqrstuvwxyz1234567890abcdefghijklmnipqrstuvwxyz1234567890abcdefghijklmnipqrstuvwxyz1234567890' > /dev/ttyUSB0
-cmp /tmp/ttyS0 /tmp/ttyUSB0
-cat /tmp/tty*
+cat /sys/kernel/debug/usb/devices|grep C:|sed "/MxPwr=  0/d"
