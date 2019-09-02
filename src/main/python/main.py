@@ -101,6 +101,19 @@ class AppWindow(QMainWindow, main_dialog):
             except serial.SerialException as e:
                 sys.stdout.write(str(e))
 
+    def check_port(self, port):
+        if port == "":
+            self.msgbox_error("There is no available port.\bPlease use rescan button.")
+            return False
+        else:
+            try:
+                ser = serial.Serial(port, 115200, timeout=1)
+                ser.close()
+                return True
+            except serial.SerialException as e:
+                sys.stdout.write('check_port() {}'.format(e))
+                return False
+
     def rescanButtonPressed(self):
         """ rescan pushbutton용 Event handler """
         # ! 기존 연결 close
@@ -118,24 +131,26 @@ class AppWindow(QMainWindow, main_dialog):
         """ open pushbutton용 Event handler """
         try:
             if self.iscomportopened is False:
+                if not self.check_port(self.combobox_devport.currentText()):
+                    self.logtextedit.appendPlainText('[ERROR] Cannot open port. Please use Rescan button.')
+                    return
+
                 """ open com port """
                 self.iscomportopened = True
-                self.logtextedit.appendPlainText('[INFO] Comport is opened')
                 self.comthread = comthread(self.combobox_devport.currentText())
-                # self.sig.connect(self.comthread.on_source)
-                # self.sig.emit('start thread')
-                self.comthread.start()
                 self.comthread.signal.connect(self.appendlogtext)
                 self.comthread.signal_state.connect(self.statehandler)
+                self.comthread.start()
+
                 # ! test result
                 self.comthread.test_result.connect(self.append_resulttext)
+                self.logtextedit.appendPlainText('[INFO] Comport is opened')
                 self.button_open_devport.setText('Close')
             else:
                 """ close com port """
                 self.iscomportopened = False
-                self.logtextedit.appendPlainText('[INFO] Comport is closed')
                 self.comthread.stop()
-                # self.sig.emit('stop thread')
+                self.logtextedit.appendPlainText('[INFO] Comport is closed')
                 self.button_open_devport.setText('Open')
             self.enable_rescanbtn()
         except Exception as e:
@@ -145,22 +160,27 @@ class AppWindow(QMainWindow, main_dialog):
         """ Barcode port open button """
         try:
             if self.isopened_barcodeport is False:
+                if not self.check_port(self.combobox_barcode.currentText()):
+                    self.logtextedit_barcode.appendPlainText(
+                        '[ERROR] Cannot open port. Please use Rescan button.')
+                    return
                 self.isopened_barcodeport = True
-                self.logtextedit_barcode.appendPlainText('[INFO] Barcode comport is opened')
                 self.barcodethread = barcodethread(self.combobox_barcode.currentText())
                 self.barcodethread.start()
                 self.barcodethread.barcode_signal.connect(self.appendbarcodelog)
                 self.barcodethread.barcode_state_signal.connect(self.barcode_statehandler)
                 self.button_open_barcodeport.setText('Close\n(barcode)')
+                self.logtextedit_barcode.appendPlainText('[INFO] Barcode comport is opened')
                 self.enable_startbtn()
             else:
                 self.isopened_barcodeport = False
-                self.logtextedit_barcode.appendPlainText('[INFO] Barcode comport is closed')
                 self.barcodethread.stop()
+                self.logtextedit_barcode.appendPlainText('[INFO] Barcode comport is closed')
                 self.button_open_barcodeport.setText('Open\n(barcode)')
             self.enable_rescanbtn()
         except Exception as e:
             print('ERROR: openBarcodeButtonPressed:', e)
+            self.logtextedit.appendPlainText('[ERROR] barcode port open error')
 
     def enable_startbtn(self):
         if self.iscomportopened and self.isopened_barcodeport:

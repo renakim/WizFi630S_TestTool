@@ -20,7 +20,10 @@ class barcodethread(QtCore.QThread):
         self.macaddr = None
 
         # barcode 기기 연결 port
-        self.comport = serial.Serial(comport, 115200, timeout=1)
+        try:
+            self.comport = serial.Serial(comport, 115200, timeout=1)
+        except serial.SerialException as e:
+            self.comport = None
 
         self.barcodelog = None
 
@@ -49,12 +52,12 @@ class barcodethread(QtCore.QThread):
         self.barcodelog.close()
 
     def isvalid_mac(self, addr):
-        """ mac 형태 변환 후 올바른 값인지 확인 """
+        """ mac 형태 변환 & 체크 """
         # 0008DCAABBCC > 00:08:DC:AA:BB:CC
         self.macaddr = ":".join([addr[i:i+2] for i in range(0, len(addr), 2)])
         macexpr = "^([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})$"
         prog = re.compile(macexpr)
-        if prog.match(self.macaddr):
+        if prog.match(self.macaddr) and '00:08:DC' in self.macaddr:
             print("Valid Mac: %s\r\n" % self.macaddr)
             return True
         else:
@@ -66,7 +69,7 @@ class barcodethread(QtCore.QThread):
             try:
                 if self.comport.isOpen():
                     if 'FORCE' in self.curstate:
-                        # main signal -> invlid mac이지만, 어쩔수 없는 경우 진행
+                        # invalid mac이지만, 어쩔수 없는 경우 그대로 진행
                         # 예: 바코드 자체가 잘못되었을 때
                         self.write_macaddr()
 

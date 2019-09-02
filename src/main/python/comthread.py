@@ -26,11 +26,13 @@ class comthread(QtCore.QThread):
         QtCore.QThread.__init__(self, parent)
         self.alive = True
         self.source_txt = ''
+
         try:
             self.comport = serial.Serial(comport, 115200, timeout=1)
-        except serial.SerialException as e:
+        except Exception as e:
             self.comport = None
-            self.signal_state.emit('ERROR:' + str(e))
+            self.signal_state.emit('ERROR: {}'.format(e))
+
         self.curstate = IDLE
         self.testresult = True
         self.substate = 0
