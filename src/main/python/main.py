@@ -228,6 +228,8 @@ class AppWindow(QMainWindow, main_dialog):
 
     def startButtonPressed(self):
         self.startbutton.setEnabled(False)
+        self.comthread.close_serial()
+        self.comthread.open_serial()
         self.comthread.curstate = BOOTING
         self.barcodethread.curstate = 'START'
 

@@ -26,13 +26,13 @@ class comthread(QtCore.QThread):
         QtCore.QThread.__init__(self, parent)
         self.alive = True
         self.source_txt = ''
-
-        try:
-            self.comport = serial.Serial(comport, 115200, timeout=1)
-        except Exception as e:
-            self.comport = None
-            self.signal_state.emit('ERROR: {}'.format(e))
-
+        self.serial_port = comport
+        self.comport = None
+        # try:
+        #     self.comport = serial.Serial(self.serial_port, 115200, timeout=1)
+        # except serial.SerialException as e:
+        #     self.comport = None
+        #     self.signal_state.emit('ERROR:' + str(e))
         self.curstate = IDLE
         self.testresult = True
         self.substate = 0
@@ -41,6 +41,19 @@ class comthread(QtCore.QThread):
         self.gpiocheck_result = None
         self.device_mac = None
         self.logfile = None
+
+    def open_serial(self):
+        try:
+            self.comport = serial.Serial(self.serial_port, 115200, timeout=1)
+        except serial.SerialException as e:
+            self.comport = None
+            self.signal_state.emit('ERROR:' + str(e))
+
+        self.substate = 3
+
+    def close_serial(self):
+        if self.comport is not None:
+            self.comport.close()
 
         self.gpio_tested = False
 
@@ -266,11 +279,14 @@ class comthread(QtCore.QThread):
                 pass
             elif self.curstate is BOOTING:
                 self.gpio_tested = False     # value 초기화
+
                 try:
                     recv = self.comport.readline()
-                except Exception as e:
+                except serial.SerialException as e:
+                    print("ERROR " + str(e))
                     self.signal.emit('[WARNING] Read error! Check the comport.')
                     time.sleep(1)
+
                 if recv is not '':
                     tmprcv = recv.strip().decode("utf-8")
                     if self.substate == 0:
