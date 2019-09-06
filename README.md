@@ -1,18 +1,9 @@
 # WizFi630S Test Tool
 
-## Guide
-
-### Use virtual environment
-
-#### If virtualenv not installed
+## Virtual environment
 
 ```
 pip install virtualenv
-```
-
-#### make & activate
-
-```
 virtualenv .venv
 ```
 
@@ -28,20 +19,40 @@ virtualenv .venv
   source .venv/bin/activate
   ```
 
-### Package Install
+## Package Install
 
 ```
 pip install -r requirements.txt
 ```
 
-### Run
+## Run
 
 ```
+python src/main/python/main.py
+```
+
+----
+
+## Using fbs
+
+```bash
+# run
 fbs run
-```
 
-### Freeze
-
-```
+# freeze
 fbs freeze
 ```
+----
+
+## Using pyinstaller
+
+
+```bash
+# Modify main.py: set USE_PYINSTALLER to True
+USE_PYINSTALLER = True
+
+# Make excutable file
+cd src/main/python
+pyinstaller setup_exe.spec
+```
+

@@ -22,6 +22,8 @@ GPIOCHECK = 5
 
 VERSION = 'V0.9.1'
 
+USE_PYINSTALLER = False
+
 
 def resource_path(relative_path):
     # Get absolute path to resource, works for dev and for PyInstaller
@@ -322,14 +324,15 @@ class AppWindow(QMainWindow, main_dialog):
 
 
 if __name__ == '__main__':
-    # for fbs
-    appctxt = ApplicationContext()
-    maindialog = AppWindow()
-    maindialog.show()
-    sys.exit(appctxt.app.exec_())
-
-    # for Pyinstaller
-    # app = QApplication(sys.argv)
-    # maindialog = AppWindow()
-    # maindialog.show()
-    # app.exec_()
+    if USE_PYINSTALLER:
+        # for Pyinstaller
+        app = QApplication(sys.argv)
+        maindialog = AppWindow()
+        maindialog.show()
+        app.exec_()
+    else:
+        # for fbs
+        appctxt = ApplicationContext()
+        maindialog = AppWindow()
+        maindialog.show()
+        sys.exit(appctxt.app.exec_())
