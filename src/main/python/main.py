@@ -20,7 +20,7 @@ TESTING = 3
 NORMAL = 4
 GPIOCHECK = 5
 
-VERSION = 'V0.9.0'
+VERSION = 'V0.9.1'
 
 
 def resource_path(relative_path):
@@ -81,14 +81,27 @@ class AppWindow(QMainWindow, main_dialog):
 
         """ Barcode 기기 연결 com port """
         self.barcodethread = None
+        self.barcode_mac = None
 
         """ log directory 생성 """
         self.make_logdir()
+
+        self.sn_front = None
+        self.load_serialnum()
 
     def make_logdir(self):
         logdir = "./logs"
         if not os.path.isdir(logdir):
             os.mkdir(logdir)
+
+    def load_serialnum(self):
+        f = open('serialnum.cfg', 'r')
+        self.sn_front = f.readline()
+        self.sn_front = self.sn_front.strip()
+        f.close()
+
+        print('@@ load_serialnum()', self.sn_front)
+        self.label_serialnum.setText(self.sn_front)
 
     def initComboBox(self, combobox):
         """ 콤보박스에 아이템 입력 """
@@ -122,9 +135,15 @@ class AppWindow(QMainWindow, main_dialog):
         # if self.barcodethread is not None:
         #     self.barcodethread.stop()
 
+        self.refresh_devport()
+        self.refresh_barcodeport()
+
+    def refresh_devport(self):
         self.combobox_devport.clear()
-        self.combobox_barcode.clear()
         self.initComboBox(self.combobox_devport)
+
+    def refresh_barcodeport(self):
+        self.combobox_barcode.clear()
         self.initComboBox(self.combobox_barcode)
 
     def openButtonPressed(self):
@@ -152,7 +171,12 @@ class AppWindow(QMainWindow, main_dialog):
                 self.comthread.stop()
                 self.logtextedit.appendPlainText('[INFO] Comport is closed')
                 self.button_open_devport.setText('Open')
+
             self.enable_rescanbtn()
+            if self.sn_front is not None:
+                self.comthread.serialnum_front = self.sn_front
+
+            self.refresh_barcodeport()
         except Exception as e:
             print('ERROR: openButtonPressed:', e)
 
@@ -178,6 +202,8 @@ class AppWindow(QMainWindow, main_dialog):
                 self.logtextedit_barcode.appendPlainText('[INFO] Barcode comport is closed')
                 self.button_open_barcodeport.setText('Open\n(barcode)')
             self.enable_rescanbtn()
+
+            self.refresh_devport()
         except Exception as e:
             print('ERROR: openBarcodeButtonPressed:', e)
             self.logtextedit.appendPlainText('[ERROR] barcode port open error')
@@ -194,6 +220,14 @@ class AppWindow(QMainWindow, main_dialog):
 
     def appendbarcodelog(self, logtxt):
         self.logtextedit_barcode.appendPlainText(logtxt)
+        # Save barcode data
+        self.barcode_mac = logtxt[-12:]
+
+        # serial number
+        sn_full = self.sn_front + self.barcode_mac[6:]
+        self.comthread.serialnum = sn_full
+        self.label_serialnum.setText(sn_full)
+        self.label_serialnum.setStyleSheet('color: green')
 
     def startButtonPressed(self):
         self.startbutton.setEnabled(False)
@@ -236,8 +270,11 @@ class AppWindow(QMainWindow, main_dialog):
             self.enable_startbtn()
         elif "GPIO" in statetxt:
             """ """
-            self.msglabel.setStyleSheet('color: green')
+            self.msglabel.setStyleSheet('color: blue')
             self.msglabel.setText('GPIO CHECKING...')
+        elif "SERIAL" in statetxt:
+            self.msglabel.setStyleSheet('color: green')
+            self.msglabel.setText('S/N WRIRING...')
         elif "BARCODE" in statetxt:
             # !
             """ 바코드를 찍지 않은 경우 메시지를 띄움 """
