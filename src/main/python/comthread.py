@@ -49,7 +49,7 @@ class comthread(QtCore.QThread):
             self.comport = None
             self.signal_state.emit('ERROR:' + str(e))
 
-        self.substate = 3
+        # self.substate = 3
 
     def close_serial(self):
         if self.comport is not None:
