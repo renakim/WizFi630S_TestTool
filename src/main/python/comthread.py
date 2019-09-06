@@ -26,21 +26,39 @@ class comthread(QtCore.QThread):
         QtCore.QThread.__init__(self, parent)
         self.alive = True
         self.source_txt = ''
-
-        try:
-            self.comport = serial.Serial(comport, 115200, timeout=1)
-        except Exception as e:
-            self.comport = None
-            self.signal_state.emit('ERROR: {}'.format(e))
-
+        self.serial_port = comport
+        self.comport = None
+        # try:
+        #     self.comport = serial.Serial(self.serial_port, 115200, timeout=1)
+        # except serial.SerialException as e:
+        #     self.comport = None
+        #     self.signal_state.emit('ERROR:' + str(e))
         self.curstate = IDLE
         self.testresult = True
         self.substate = 0
         self.testlist = {}
 
         self.gpiocheck_result = None
-        self.macaddr = None
+        self.device_mac = None
         self.logfile = None
+
+    def open_serial(self):
+        try:
+            self.comport = serial.Serial(self.serial_port, 115200, timeout=1)
+        except serial.SerialException as e:
+            self.comport = None
+            self.signal_state.emit('ERROR:' + str(e))
+
+        # self.substate = 3
+
+    def close_serial(self):
+        if self.comport is not None:
+            self.comport.close()
+
+        self.gpio_tested = False
+
+        # Serial number
+        self.serialnum = None
 
     def load_testfiles(self):
         filelist = glob.glob("*.txt")
@@ -88,7 +106,7 @@ class comthread(QtCore.QThread):
                     if responsetxt is not "":
                         # Save mac address
                         if 'mac' in self.testlist[testitem]['testname']:
-                            self.macaddr = responsebuffer
+                            self.device_mac = responsebuffer
 
                         if responsetxt in responsebuffer:
                             self.testlist[testitem]['result'] = 'PASS'
@@ -116,7 +134,7 @@ class comthread(QtCore.QThread):
             'result': self.gpiocheck_result
         }
 
-        if self.macaddr is not None:
+        if self.device_mac is not None:
             self.test_result.emit('\n')
             for testnum in self.testlist.keys():
                 if self.testlist[testnum]['result'] is 'FAIL':
@@ -127,7 +145,7 @@ class comthread(QtCore.QThread):
             failstr = ",".join(failed_list)
 
             logline = "%s | %s | " % (
-                time.strftime('%Y-%m-%d, %H:%M:%S', time.localtime(time.time())), self.macaddr)
+                time.strftime('%Y-%m-%d, %H:%M:%S', time.localtime(time.time())), self.device_mac)
             if self.testresult:
                 logline = logline + 'PASS'
             else:
@@ -150,13 +168,13 @@ class comthread(QtCore.QThread):
             'result': self.gpiocheck_result
         }
 
-        if self.macaddr is not None:
+        if self.device_mac is not None:
             self.test_result.emit('\n\n')
             for testnum in self.testlist.keys():
                 # all case
                 # test = testnum + '_' + self.testlist[testnum]['testname']
                 test = "%s | %s | %s) %-15s | %-5s" % (
-                    time.strftime('%Y-%m-%d, %H:%M:%S', time.localtime(time.time())), self.macaddr,
+                    time.strftime('%Y-%m-%d, %H:%M:%S', time.localtime(time.time())), self.device_mac,
                     testnum, self.testlist[testnum]['testname'], self.testlist[testnum]['result'])
                 self.test_result.emit(test)
                 print(test)
@@ -255,12 +273,20 @@ class comthread(QtCore.QThread):
                 self.signal_state.emit('IDLE')
                 self.load_testfiles()
                 self.curstate = READY
-                # self.substate = 0
-                self.substate = 3  # ! GPIO 테스트 먼저 진행
+                self.substate = 0
+                # self.substate = 3  # ! GPIO 테스트
             elif self.curstate is READY:
                 pass
             elif self.curstate is BOOTING:
-                recv = self.comport.readline()
+                self.gpio_tested = False     # value 초기화
+
+                try:
+                    recv = self.comport.readline()
+                except serial.SerialException as e:
+                    print("ERROR " + str(e))
+                    self.signal.emit('[WARNING] Read error! Check the comport.')
+                    time.sleep(1)
+
                 if recv is not '':
                     tmprcv = recv.strip().decode("utf-8")
                     if self.substate == 0:
@@ -286,80 +312,99 @@ class comthread(QtCore.QThread):
                             self.signal_state.emit('TESTING')
                             self.substate = 0
                     if self.substate == 3:
-                        """ GPIO Check """
+                        """ Write serial number and GPIO test """
                         self.signal.emit(tmprcv)
                         if 'Please choose the operation' in tmprcv:
-                            self.signal_state.emit('GPIO')
+                            self.signal_state.emit('SERIAL')
                             self.comport.write(b'a')
+                            # self.comport.write(b'0xdd')
 
-                        if 'OK' in tmprcv or 'FAIL' in tmprcv:
-                            if 'OK' in tmprcv:
-                                self.gpiocheck_result = 'PASS'
-                            elif 'FAIL' in tmprcv:
-                                self.gpiocheck_result = 'FAIL'
-                                self.testresult = False
-                            # 테스트가 끝나면 \n 입력
-                            self.substate = 0
-                            self.comport.write(b'\n')
-                            self.comport.write(b'\n')
+                        #! Serial number 입력
+                        if 'Input Serial' in tmprcv:
+                            if self.serialnum is not None:
+                                self.comport.write(self.serialnum.encode())
+                                self.comport.write(b'\n')
+                                print('========== serialnum', self.serialnum)
+                            else:
+                                #! 예외 처리
+                                self.test_result.emit('Warning: Serial number not available!')
+
+                        if 'GPIO' in tmprcv:
+                            self.signal_state.emit('GPIO')
+                            if 'OK' in tmprcv or 'FAIL' in tmprcv:
+                                if 'OK' in tmprcv:
+                                    self.gpiocheck_result = 'PASS'
+                                elif 'FAIL' in tmprcv:
+                                    self.gpiocheck_result = 'FAIL'
+                                    self.testresult = False
+
+                                self.gpio_tested = True
+                                self.curstate = TESTING
 
             elif self.curstate is TESTING:
                 try:
-                    for testitem in self.testlist.keys():
-                        self.signal.emit(
-                            '===============' + testitem + ' ' + self.testlist[testitem]['testname'] + ' is starting ===============')
-                        #! 06_test_mac 테스트 시 체크:
-                        # 바코드가 찍히지 않은 경우, 테스트 일시 중단 & 파일 체크
-                        if 'mac' in self.testlist[testitem]['testname']:
-                            while not self.check_barcode():
-                                self.signal_state.emit('BARCODE NOT READ')
-                            self.signal_state.emit('TESTING')
+                    if not self.gpio_tested:
+                        for testitem in self.testlist.keys():
+                            self.signal.emit(
+                                '=============== ' + testitem + ' ' + self.testlist[testitem]['testname'] + ' is starting ===============')
+                            #! 06_test_mac 테스트 시 체크:
+                            # 바코드가 찍히지 않은 경우, 테스트 일시 중단 & 파일 체크
+                            if 'mac' in self.testlist[testitem]['testname']:
+                                while not self.check_barcode():
+                                    self.signal_state.emit('BARCODE NOT READ')
+                                self.signal_state.emit('TESTING')
 
-                        print('TESTING Check', self.testlist[testitem])
-                        cmdfile = open(self.testlist[testitem]['req'], "r")
-                        respfile = open(self.testlist[testitem]['resp'], "r")
-                        responsetxt = respfile.readline()
-                        responsetxt = responsetxt.strip()
-                        # self.signal.emit(responsetxt)
-                        cmdlines = cmdfile.readlines()
+                            print('TESTING Check', self.testlist[testitem])
+                            cmdfile = open(self.testlist[testitem]['req'], "r")
+                            respfile = open(self.testlist[testitem]['resp'], "r")
+                            responsetxt = respfile.readline()
+                            responsetxt = responsetxt.strip()
+                            # self.signal.emit(responsetxt)
+                            cmdlines = cmdfile.readlines()
 
-                        if len(cmdlines) > 1:
-                            for index, line in enumerate(cmdlines):
-                                print(index, line, sep=' ')
-                                print(line.encode())
+                            if len(cmdlines) > 1:
+                                for index, line in enumerate(cmdlines):
+                                    print(index, line, sep=' ')
+                                    print(line.encode())
+                                    self.comport.write(line.encode())
+                                    recvline = self.comport.readline()
+                                    print(recvline.strip().decode('utf-8'))
+                                    self.signal.emit(recvline.strip().decode('utf-8'))
+                                    self.comport.write(b'\n')
+                                    if index < (len(cmdlines) - 1):
+                                        self.responsecheck(line, "", testitem)
+                                    else:
+                                        self.responsecheck(line, responsetxt, testitem)
+                                    time.sleep(1)
+                            else:
+                                line = cmdlines[0]
+                                # line += '\r\n'
                                 self.comport.write(line.encode())
                                 recvline = self.comport.readline()
-                                print(recvline.strip().decode('utf-8'))
+                                # print(recvline)
                                 self.signal.emit(recvline.strip().decode('utf-8'))
-                                self.comport.write(b'\n')
-                                if index < (len(cmdlines) - 1):
-                                    self.responsecheck(line, "", testitem)
-                                else:
-                                    self.responsecheck(line, responsetxt, testitem)
+                                self.comport.write(b'\r\n')
+                                self.responsecheck(line, responsetxt, testitem)
                                 time.sleep(1)
-                        else:
-                            line = cmdlines[0]
-                            # line += '\r\n'
-                            self.comport.write(line.encode())
-                            recvline = self.comport.readline()
-                            # print(recvline)
-                            self.signal.emit(recvline.strip().decode('utf-8'))
-                            self.comport.write(b'\r\n')
-                            self.responsecheck(line, responsetxt, testitem)
-                            time.sleep(1)
                 except Exception as e:
                     print('comthread TESTING error', e)
 
-                # ? 하나라도 Fail이 발생하면 Fail로 판단
-                if self.testresult:
-                    self.signal_state.emit('PASSED')
+                if not self.gpio_tested:
+                    print('@@ GPIO test start...')
+                    self.comport.write(b'reboot\n')
+                    self.curstate = BOOTING
+                    self.substate = 3
                 else:
-                    self.signal_state.emit('FAILED')
+                    # ? 하나라도 Fail이 발생하면 Fail로 판단
+                    if self.testresult:
+                        self.signal_state.emit('PASSED')
+                    else:
+                        self.signal_state.emit('FAILED')
 
-                self.signal.emit('ALL test was done')
-                # 테스트 결과 확인/출력
-                self.get_result_oneline()
-                self.get_result()
-                self.curstate = IDLE
+                    self.signal.emit('\n=============== ALL test was done ===============\n')
+                    # 테스트 결과 확인/출력
+                    self.get_result_oneline()
+                    self.get_result()
+                    self.curstate = IDLE
 
         self.signal.emit('comthread is stopped')
