@@ -175,8 +175,6 @@ class AppWindow(QMainWindow, main_dialog):
             self.enable_rescanbtn()
             if self.sn_front is not None:
                 self.comthread.serialnum_front = self.sn_front
-
-            self.refresh_barcodeport()
         except Exception as e:
             print('ERROR: openButtonPressed:', e)
 
@@ -203,7 +201,6 @@ class AppWindow(QMainWindow, main_dialog):
                 self.button_open_barcodeport.setText('Open\n(barcode)')
             self.enable_rescanbtn()
 
-            self.refresh_devport()
         except Exception as e:
             print('ERROR: openBarcodeButtonPressed:', e)
             self.logtextedit.appendPlainText('[ERROR] barcode port open error')
