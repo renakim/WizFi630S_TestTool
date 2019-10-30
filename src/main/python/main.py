@@ -235,6 +235,10 @@ class AppWindow(QMainWindow, main_dialog):
         self.comthread.curstate = BOOTING
         self.barcodethread.curstate = 'START'
 
+        # init label
+        self.label_serialnum.setText(self.sn_front)
+        self.label_serialnum.setStyleSheet('color: black')
+
     def appendlogtext(self, logtxt):
         # print(len(logtxt), logtxt)
         # ? logtextedit 줄바꿈 방지
@@ -277,7 +281,6 @@ class AppWindow(QMainWindow, main_dialog):
             self.msglabel.setStyleSheet('color: green')
             self.msglabel.setText('S/N WRIRING...')
         elif "BARCODE" in statetxt:
-            # !
             """ 바코드를 찍지 않은 경우 메시지를 띄움 """
             self.msglabel.setStyleSheet('color: red')
             self.msglabel.setText('READ BARCODE! TEST PAUSED...')

@@ -38,7 +38,7 @@ class comthread(QtCore.QThread):
         self.substate = 0
         self.testlist = {}
 
-        self.gpiocheck_result = None
+        self.gpiotest_result = None
         self.device_mac = None
         self.logfile = None
 
@@ -127,15 +127,51 @@ class comthread(QtCore.QThread):
             except serial.SerialException as e:
                 sys.stdout.write(str(e))
 
+    def check_macaddr(self, macaddr):
+        result = ""
+
+        filepath = 'logs/maclist.txt'
+        if os.path.isfile(filepath):
+            macfile = open(filepath, 'r+')
+            maclist = macfile.readlines()
+        else:
+            macfile = open(filepath, 'w+')
+            maclist = []
+        macfile.close()
+
+        for addr in maclist:
+            if macaddr in addr:
+                print('macaddr duplicate')
+                result = " | Mac Duplicates"
+            else:
+                print('new mac address')
+
+        print('check_macaddr() =====>>', result)
+
+        if result == "":
+            f = open(filepath, 'a')
+            f.write(macaddr + '\n')
+            f.close()
+
+        return result
+
+    def check_result(self):
+        print('check_result')
+        # 올바른 결과값이 나왔는지 확인
+
     def get_result_oneline(self):
         failed_list = []
         self.testlist['07'] = {
             'testname': 'gpio check',
-            'result': self.gpiocheck_result
+            'result': self.gpiotest_result
         }
 
         if self.device_mac is not None:
             self.test_result.emit('\n')
+
+            # Mac address 중복 체크
+            check_mac_duplicates = self.check_macaddr(self.device_mac)
+
             for testnum in self.testlist.keys():
                 if self.testlist[testnum]['result'] is 'FAIL':
                     # fail case
@@ -147,9 +183,9 @@ class comthread(QtCore.QThread):
             logline = "%s | %s | " % (
                 time.strftime('%Y-%m-%d, %H:%M:%S', time.localtime(time.time())), self.device_mac)
             if self.testresult:
-                logline = logline + 'PASS'
+                logline = logline + 'PASS' + check_mac_duplicates
             else:
-                logline = logline + 'FAIL' + ' | ' + failstr
+                logline = logline + 'FAIL' + ' | ' + failstr + check_mac_duplicates
 
             # log file 저장
             self.test_result.emit(logline)
@@ -165,7 +201,7 @@ class comthread(QtCore.QThread):
 
         self.testlist['07'] = {
             'testname': 'gpio check',
-            'result': self.gpiocheck_result
+            'result': self.gpiotest_result
         }
 
         if self.device_mac is not None:
@@ -235,6 +271,7 @@ class comthread(QtCore.QThread):
         logfile = open(filepath, 'w')
         logfile.write("".join(loglines))
         logfile.close()
+        readfile.close()
 
     def save_log(self, logtxt):
         filepath = 'logs/' + time.strftime('%Y%m', time.localtime(time.time())) + '_WizFi630S_test_log.txt'
@@ -333,9 +370,9 @@ class comthread(QtCore.QThread):
                             self.signal_state.emit('GPIO')
                             if 'OK' in tmprcv or 'FAIL' in tmprcv:
                                 if 'OK' in tmprcv:
-                                    self.gpiocheck_result = 'PASS'
+                                    self.gpiotest_result = 'PASS'
                                 elif 'FAIL' in tmprcv:
-                                    self.gpiocheck_result = 'FAIL'
+                                    self.gpiotest_result = 'FAIL'
                                     self.testresult = False
 
                                 self.gpio_tested = True
@@ -403,6 +440,7 @@ class comthread(QtCore.QThread):
 
                     self.signal.emit('\n=============== ALL test was done ===============\n')
                     # 테스트 결과 확인/출력
+                    self.check_result()
                     self.get_result_oneline()
                     self.get_result()
                     self.curstate = IDLE
